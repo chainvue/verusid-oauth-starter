@@ -181,4 +181,28 @@ describe("completePendingLogin", () => {
 
     expect(getPendingLogin(pending.id)).toBeUndefined()
   })
+
+  it("removes pending login sessions from challenge lookup", async () => {
+    vi.resetModules()
+    const { createPendingLogin, completePendingLogin, removePendingLogin } = await import(
+      "../src/verusLogin"
+    )
+
+    verusId.interface.getIdentity.mockResolvedValueOnce({
+      result: { identity: { identityaddress: "iServiceAddress" } },
+    })
+
+    const pending = await createPendingLogin("login-123")
+    removePendingLogin(pending.id)
+
+    await expect(completePendingLogin({
+      signing_id: "iUserAddress",
+      decision: {
+        decision_id: pending.verusChallengeId,
+        request: {
+          toString: () => pending.qrRequest.toString(),
+        },
+      },
+    })).rejects.toThrow("No pending login matches this Verus response.")
+  })
 })

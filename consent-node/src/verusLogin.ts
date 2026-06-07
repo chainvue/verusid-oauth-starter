@@ -45,7 +45,51 @@ export type PendingVerusLogin = {
   verusIdName?: string
 }
 
-const pending = new Map<string, PendingVerusLogin>()
+class MemoryPendingLoginStore {
+  private readonly byId = new Map<string, PendingVerusLogin>()
+  private readonly byChallengeId = new Map<string, string>()
+
+  set(session: PendingVerusLogin) {
+    this.byId.set(session.id, session)
+    this.byChallengeId.set(session.verusChallengeId, session.id)
+  }
+
+  getById(id: string) {
+    return this.byId.get(id)
+  }
+
+  getPendingByChallengeId(challengeId: string | undefined) {
+    if (!challengeId) {
+      return undefined
+    }
+    const id = this.byChallengeId.get(challengeId)
+    const session = id ? this.byId.get(id) : undefined
+    return session?.status === "pending" ? session : undefined
+  }
+
+  delete(id: string) {
+    const session = this.byId.get(id)
+    if (session) {
+      this.byChallengeId.delete(session.verusChallengeId)
+    }
+    this.byId.delete(id)
+  }
+
+  cleanupExpired(ttlMs: number) {
+    const now = Date.now()
+
+    for (const [id, session] of this.byId.entries()) {
+      if (
+        session.status === "pending" &&
+        now - session.createdAt > ttlMs
+      ) {
+        this.delete(id)
+      }
+    }
+  }
+}
+
+const pendingStore = new MemoryPendingLoginStore()
 const I_ADDR_VERSION = 102
 
 function randomIAddressLikeId() {
@@ -53,16 +97,7 @@ function randomIAddressLikeId() {
 }
 
 function cleanupExpired() {
-  const now = Date.now()
-
-  for (const [id, session] of pending.entries()) {
-    if (
-      session.status === "pending" &&
-      now - session.createdAt > verusLoginTtlMs
-    ) {
-      pending.delete(id)
-    }
-  }
+  pendingStore.cleanupExpired(verusLoginTtlMs)
 }
 
 function decodeBase64Url(value: string) {
@@ -142,11 +177,11 @@ async function createSignedLoginConsentRequest(
 
 export function getPendingLogin(id: string) {
   cleanupExpired()
-  return pending.get(id)
+  return pendingStore.getById(id)
 }
 
 export function removePendingLogin(id: string) {
-  pending.delete(id)
+  pendingStore.delete(id)
 }
 
 export async function createPendingLogin(loginChallenge: string) {
@@ -200,7 +235,7 @@ export async function createPendingLogin(loginChallenge: string) {
     status: "pending",
   }
 
-  pending.set(session.id, session)
+  pendingStore.set(session)
   return session
 }
 
@@ -236,11 +271,7 @@ export function parseLoginConsentResponse(
 export async function completePendingLogin(response: LoginConsentResponse) {
   cleanupExpired()
 
-  const session = [...pending.values()].find(
-    (entry) =>
-      entry.status === "pending" &&
-      entry.verusChallengeId === response.decision?.decision_id,
-  )
+  const session = pendingStore.getPendingByChallengeId(response.decision?.decision_id)
 
   if (!session) {
     throw new Error("No pending login matches this Verus response.")
