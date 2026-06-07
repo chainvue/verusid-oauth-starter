@@ -13,7 +13,7 @@ export function getStartupWarnings(config, env = process.env) {
     warnings.push("Use an HTTPS REDIRECT_URI and secure cookies in production.")
   }
 
-  warnings.push("The example uses an in-memory session Map; replace it with your production session store.")
+  warnings.push("The example uses express-session's MemoryStore; configure a durable production session store before deployment.")
 
   if (config.localHost === PLACEHOLDER_HOST || String(config.redirectUri).includes(PLACEHOLDER_HOST)) {
     warnings.push("Replace <LAN-IP> with a LAN-reachable LOCAL_HOST before phone testing.")

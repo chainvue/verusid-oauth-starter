@@ -1,5 +1,4 @@
 import express from "express"
-import url from "url"
 
 import { hydraAdmin } from "../config"
 import { createPendingLogin } from "../verusLogin"
@@ -8,8 +7,7 @@ import { csrfProtection } from "./csrf"
 const router = express.Router()
 
 router.get("/", csrfProtection, (req, res, next) => {
-  const query = url.parse(req.url, true).query
-  const challenge = String(query.login_challenge || "")
+  const challenge = new URL(req.originalUrl, "http://localhost").searchParams.get("login_challenge") || ""
 
   if (!challenge) {
     next(new Error("Expected a login challenge to be set but received none."))

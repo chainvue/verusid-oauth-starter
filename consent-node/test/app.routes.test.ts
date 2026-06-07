@@ -15,6 +15,7 @@ const verusLogin = vi.hoisted(() => ({
   parseLoginConsentResponse: vi.fn(),
   completePendingLogin: vi.fn(),
   getPendingLogin: vi.fn(),
+  removePendingLogin: vi.fn(),
 }))
 
 vi.mock("../src/config", () => ({
@@ -139,6 +140,7 @@ describe("consent-node routes", () => {
   it("returns completed Verus callback details", async () => {
     verusLogin.parseLoginConsentResponse.mockReturnValue({ decision: {} })
     verusLogin.completePendingLogin.mockResolvedValue({
+      id: "pending-123",
       status: "complete",
       verusId: "iUserAddress",
       verusIdName: "user@",
@@ -149,6 +151,26 @@ describe("consent-node routes", () => {
       verusId: "iUserAddress",
       verusIdName: "user@",
     })
+    expect(verusLogin.removePendingLogin).toHaveBeenCalledWith("pending-123")
+  })
+
+  it("returns terminal status once and then prunes it", async () => {
+    verusLogin.getPendingLogin.mockReturnValue({
+      id: "pending-123",
+      status: "complete",
+      redirectTo: "http://192.168.0.160:4444/continue",
+      verusId: "iUserAddress",
+      verusIdName: "user@",
+    })
+
+    await request(app).get("/verus/status/pending-123").expect(200, {
+      status: "complete",
+      redirectTo: "http://192.168.0.160:4444/continue",
+      verusId: "iUserAddress",
+      verusIdName: "user@",
+    })
+
+    expect(verusLogin.removePendingLogin).toHaveBeenCalledWith("pending-123")
   })
 
   it("copies Verus claims into accepted consent token sessions", async () => {

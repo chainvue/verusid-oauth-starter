@@ -27,7 +27,7 @@ Discover your LAN host and install dependencies:
 
 ```sh
 LOCAL_HOST=$(ipconfig getifaddr en0)
-npm install
+npm ci
 cp .env.example .env.local
 ```
 
@@ -43,7 +43,7 @@ The Docker stack includes a packaged copy of the Express example on port `5560`.
 ```sh
 docker compose stop verusid-express-login
 cd examples/verusid-express-login
-npm install
+npm ci
 LOCAL_HOST=$LOCAL_HOST npm start
 ```
 
@@ -90,7 +90,11 @@ The stack includes:
 - Postgres persistence for Hydra.
 - Editable TypeScript/Express consent node under `consent-node/`.
 - Callback dashboard under `oauth-callback/`.
-- Copy-ready Express login app under `examples/verusid-express-login/`.
+- Copy-ready Express login app under `examples/verusid-express-login/`, using `express-session` with an HTTP-only, lax same-site cookie.
+
+The Express example stores OAuth `state`, `nonce`, and PKCE `codeVerifier` in
+the server-side session during `/login`; `/callback` passes the saved verifier
+to the SDK. Missing verifiers are rejected before token exchange.
 
 Common commands:
 

@@ -35,7 +35,8 @@ services:
     image: node:22-alpine
     working_dir: /app
     env_file:
-      - ./.env.local
+      - path: ./.env.local
+        required: false
     environment:
       HYDRA_ADMIN_URL: http://hydra:4445
       BASE_URL: ${CONSENT_NODE_URL:-http://192.168.0.160:3000}
@@ -45,7 +46,7 @@ services:
     volumes:
       - ./consent-node:/app
       - consent-node-modules:/app/node_modules
-    command: sh -c "export PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 PNPM_CONFIG_BLOCK_EXOTIC_SUBDEPS=false && apk add --no-cache git && corepack enable && pnpm install && pnpm dev"
+    command: sh -c "export PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 PNPM_CONFIG_BLOCK_EXOTIC_SUBDEPS=false && apk add --no-cache git && corepack enable && pnpm install --frozen-lockfile && pnpm dev"
     depends_on:
       - hydra
 
@@ -84,7 +85,7 @@ services:
       - "5560:5560"
     volumes:
       - .:/repo
-    command: sh -c "npm install && cd examples/verusid-express-login && npm install && npm start"
+    command: sh -c "npm ci && cd examples/verusid-express-login && npm ci && npm start"
     depends_on:
       - hydra
 

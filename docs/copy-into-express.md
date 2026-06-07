@@ -29,7 +29,11 @@ app.use(session({
 
 app.get("/login", (req, res) => {
   const login = verusOAuth.createLoginRequest()
-  req.session.oauth = { state: login.state, nonce: login.nonce }
+  req.session.oauth = {
+    state: login.state,
+    nonce: login.nonce,
+    codeVerifier: login.codeVerifier,
+  }
   res.redirect(login.authorizationUrl.toString())
 })
 
@@ -40,6 +44,7 @@ app.get("/callback", async (req, res, next) => {
 
     req.session.login = await verusOAuth.completeLogin({
       code: req.query.code,
+      codeVerifier: saved.codeVerifier,
       returnedState: req.query.state,
       expectedState: saved.state,
       expectedNonce: saved.nonce,

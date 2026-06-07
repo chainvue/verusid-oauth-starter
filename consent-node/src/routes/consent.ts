@@ -1,6 +1,5 @@
 import { AcceptOAuth2ConsentRequestSession } from "@ory/hydra-client-fetch"
 import express from "express"
-import url from "url"
 
 import { hydraAdmin, verusChain } from "../config"
 import { csrfProtection } from "./csrf"
@@ -65,8 +64,7 @@ function filterGrantableScopes(scopes: unknown): string[] {
 }
 
 router.get("/", csrfProtection, (req, res, next) => {
-  const query = url.parse(req.url, true).query
-  const challenge = String(query.consent_challenge || "")
+  const challenge = new URL(req.originalUrl, "http://localhost").searchParams.get("consent_challenge") || ""
 
   if (!challenge) {
     next(new Error("Expected a consent challenge to be set but received none."))

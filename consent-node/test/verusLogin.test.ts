@@ -162,4 +162,23 @@ describe("completePendingLogin", () => {
       },
     })
   })
+
+  it("removes expired pending login sessions during lookup", async () => {
+    vi.resetModules()
+    const { createPendingLogin, getPendingLogin } = await import(
+      "../src/verusLogin"
+    )
+
+    verusId.interface.getIdentity.mockResolvedValueOnce({
+      result: { identity: { identityaddress: "iServiceAddress" } },
+    })
+
+    const pending = await createPendingLogin("login-123")
+
+    expect(getPendingLogin(pending.id)?.status).toBe("pending")
+
+    vi.setSystemTime(new Date("2026-06-07T10:35:46Z"))
+
+    expect(getPendingLogin(pending.id)).toBeUndefined()
+  })
 })

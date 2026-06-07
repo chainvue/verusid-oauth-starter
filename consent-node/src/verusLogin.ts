@@ -55,13 +55,12 @@ function randomIAddressLikeId() {
 function cleanupExpired() {
   const now = Date.now()
 
-  for (const session of pending.values()) {
+  for (const [id, session] of pending.entries()) {
     if (
       session.status === "pending" &&
       now - session.createdAt > verusLoginTtlMs
     ) {
-      session.status = "expired"
-      session.error = "The Verus login request expired. Start a new login."
+      pending.delete(id)
     }
   }
 }
@@ -144,6 +143,10 @@ async function createSignedLoginConsentRequest(
 export function getPendingLogin(id: string) {
   cleanupExpired()
   return pending.get(id)
+}
+
+export function removePendingLogin(id: string) {
+  pending.delete(id)
 }
 
 export async function createPendingLogin(loginChallenge: string) {

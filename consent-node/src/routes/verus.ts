@@ -5,6 +5,7 @@ import {
   completePendingLogin,
   getPendingLogin,
   parseLoginConsentResponse,
+  removePendingLogin,
 } from "../verusLogin"
 
 const router = express.Router()
@@ -37,6 +38,7 @@ async function handleCallback(
 
   if (redirectOnComplete && session.redirectTo) {
     res.redirect(session.redirectTo)
+    removePendingLogin(session.id)
     return
   }
 
@@ -46,6 +48,7 @@ async function handleCallback(
       verusId: session.verusId,
       verusIdName: session.verusIdName,
     })
+    removePendingLogin(session.id)
     return
   }
 
@@ -53,6 +56,7 @@ async function handleCallback(
     status: session.status,
     error: session.error,
   })
+  removePendingLogin(session.id)
 }
 
 const parseTextCallback = bodyParser.text({
@@ -87,6 +91,9 @@ router.get("/status/:id", (req, res) => {
     verusId: session.verusId,
     verusIdName: session.verusIdName,
   })
+  if (session.status !== "pending") {
+    removePendingLogin(session.id)
+  }
 })
 
 export default router

@@ -1,32 +1,38 @@
-import crypto from "node:crypto"
 import express from "express"
+import session from "express-session"
 
 import {
   createConfig,
-  randomValue,
   toPublicSession,
 } from "@chainvue/verusid-oauth"
 import { installVerusRoutes, withDebugTokens } from "./verus-routes.js"
 
 export function createApp(options = {}) {
   const config = options.config || createConfig()
-  const sessions = options.sessions || new Map()
   const app = express()
 
   app.use(express.urlencoded({ extended: false }))
   app.use(express.json())
-  app.use((req, res, next) => {
-    req.cookies = parseCookies(req.headers.cookie || "")
-    req.session = getOrCreateSession(req, res, sessions, config)
-    next()
-  })
+  app.use(session({
+    name: "verusid_login_session",
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    store: options.sessionStore,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 1000,
+    },
+  }))
 
   app.get("/", (req, res) => {
     const login = req.session.login
     res.type("html").send(renderHome(login, config))
   })
 
-  installVerusRoutes(app, { config, renderError })
+  installVerusRoutes(app, { config, renderError, client: options.client })
 
   app.use((error, _req, res, _next) => {
     res.status(500).type("html").send(renderError("Application error", error.message))
@@ -37,61 +43,6 @@ export function createApp(options = {}) {
 
 export function sanitizeLogin(verifiedSession, config) {
   return config.showDebugTokens ? withDebugTokens(verifiedSession) : toPublicSession(verifiedSession)
-}
-
-function getOrCreateSession(req, res, sessions, config) {
-  const existingId = req.cookies.verusid_login_session
-  if (existingId && sessions.has(existingId)) {
-    return sessions.get(existingId)
-  }
-
-  const sessionId = signSessionId(randomValue(), config.sessionSecret)
-  const session = {}
-  sessions.set(sessionId, session)
-  res.setHeader("set-cookie", serializeCookie("verusid_login_session", sessionId, {
-    httpOnly: true,
-    sameSite: "Lax",
-    maxAge: 3600,
-    path: "/",
-  }))
-  return session
-}
-
-function signSessionId(value, secret) {
-  const signature = crypto.createHmac("sha256", secret).update(value).digest("base64url")
-  return `${value}.${signature}`
-}
-
-function parseCookies(header) {
-  return header.split(";").reduce((cookies, pair) => {
-    const index = pair.indexOf("=")
-    if (index === -1) {
-      return cookies
-    }
-    const name = pair.slice(0, index).trim()
-    const value = pair.slice(index + 1).trim()
-    if (name) {
-      cookies[name] = decodeURIComponent(value)
-    }
-    return cookies
-  }, {})
-}
-
-function serializeCookie(name, value, options) {
-  const parts = [`${name}=${encodeURIComponent(value)}`]
-  if (options.maxAge !== undefined) {
-    parts.push(`Max-Age=${options.maxAge}`)
-  }
-  if (options.path) {
-    parts.push(`Path=${options.path}`)
-  }
-  if (options.httpOnly) {
-    parts.push("HttpOnly")
-  }
-  if (options.sameSite) {
-    parts.push(`SameSite=${options.sameSite}`)
-  }
-  return parts.join("; ")
 }
 
 export function renderHome(login, config) {

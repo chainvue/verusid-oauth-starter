@@ -13,6 +13,7 @@ import {
   toPublicSession,
   validateState,
   VerusOAuthError,
+  VerusOAuthErrorCode,
   verifyIdToken,
   verusClaimsMatch,
 } from "@chainvue/verusid-oauth"
@@ -144,12 +145,14 @@ test("client completeLogin returns sanitized session unless raw tokens are reque
     const client = createVerusOAuthClient(config)
     const sanitized = await client.completeLogin({
       code: "returned-code",
+      codeVerifier: "saved-code-verifier",
       returnedState: "saved-state",
       expectedState: "saved-state",
       expectedNonce: "saved-nonce",
     })
     const raw = await client.completeLogin({
       code: "returned-code",
+      codeVerifier: "saved-code-verifier",
       returnedState: "saved-state",
       expectedState: "saved-state",
       expectedNonce: "saved-nonce",
@@ -166,6 +169,35 @@ test("client completeLogin returns sanitized session unless raw tokens are reque
   }
 })
 
+test("client completeLogin requires saved PKCE verifier before token exchange", async () => {
+  const originalFetch = global.fetch
+  let tokenExchangeCalled = false
+  global.fetch = async () => {
+    tokenExchangeCalled = true
+    return textJsonResponse({})
+  }
+
+  try {
+    const client = createVerusOAuthClient(config)
+    await assert.rejects(
+      client.completeLogin({
+        code: "returned-code",
+        returnedState: "saved-state",
+        expectedState: "saved-state",
+        expectedNonce: "saved-nonce",
+      }),
+      (error) => {
+        assert.equal(error instanceof VerusOAuthError, true)
+        assert.equal(error.code, VerusOAuthErrorCode.MISSING_CODE_VERIFIER)
+        return true
+      },
+    )
+    assert.equal(tokenExchangeCalled, false)
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
 test("structured errors expose stable codes and redact token diagnostics", async () => {
   const originalFetch = global.fetch
   global.fetch = async () => textJsonResponse({
@@ -179,6 +211,7 @@ test("structured errors expose stable codes and redact token diagnostics", async
     await assert.rejects(
       client.completeLogin({
         code: "bad-code",
+        codeVerifier: "saved-code-verifier",
         returnedState: "saved-state",
         expectedState: "saved-state",
         expectedNonce: "saved-nonce",

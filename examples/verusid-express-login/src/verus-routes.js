@@ -13,6 +13,7 @@ export function installVerusRoutes(app, options) {
     req.session.oauth = {
       state: loginRequest.state,
       nonce: loginRequest.nonce,
+      codeVerifier: loginRequest.codeVerifier,
     }
     res.redirect(loginRequest.authorizationUrl.toString())
   })
@@ -24,6 +25,7 @@ export function installVerusRoutes(app, options) {
 
       const session = await client.completeLogin({
         code: req.query.code,
+        codeVerifier: savedOAuth.codeVerifier,
         returnedState: req.query.state,
         expectedState: savedOAuth.state,
         expectedNonce: savedOAuth.nonce,
@@ -63,6 +65,8 @@ export function errorTitle(error) {
       return "State validation failed"
     case VerusOAuthErrorCode.MISSING_CODE:
       return "Missing authorization code"
+    case VerusOAuthErrorCode.MISSING_CODE_VERIFIER:
+      return "Missing PKCE verifier"
     case VerusOAuthErrorCode.TOKEN_EXCHANGE_FAILED:
       return "Token exchange failed"
     default:

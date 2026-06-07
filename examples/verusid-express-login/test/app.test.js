@@ -1,9 +1,15 @@
 import assert from "node:assert/strict"
 import crypto from "node:crypto"
-import { Readable, Writable } from "node:stream"
 import test from "node:test"
+import request from "supertest"
 
-import { clearOidcCache, computeAtHash, createConfig } from "@chainvue/verusid-oauth"
+import {
+  clearOidcCache,
+  computeAtHash,
+  createConfig,
+  VerusOAuthError,
+  VerusOAuthErrorCode,
+} from "@chainvue/verusid-oauth"
 import { createApp } from "../src/app.js"
 import { getStartupWarnings } from "../src/startup.js"
 
@@ -26,16 +32,16 @@ const verusClaims = {
 }
 
 test("home page describes the VerusID Express Login starter", async () => {
-  const response = await invoke(createApp({ config: baseConfig }), "GET", "/")
+  const response = await request(createApp({ config: baseConfig })).get("/")
 
   assert.equal(response.status, 200)
-  assert.match(response.body, /VerusID Express Login/)
-  assert.match(response.body, /Login with VerusID/)
-  assert.match(response.body, /openid offline verusid/)
+  assert.match(response.text, /VerusID Express Login/)
+  assert.match(response.text, /Login with VerusID/)
+  assert.match(response.text, /openid offline verusid/)
 })
 
 test("/login sets session cookie and redirects to Hydra authorization URL", async () => {
-  const response = await invoke(createApp({ config: baseConfig }), "GET", "/login")
+  const response = await request(createApp({ config: baseConfig })).get("/login")
 
   assert.equal(response.status, 302)
   const location = new URL(response.headers.location)
@@ -45,48 +51,45 @@ test("/login sets session cookie and redirects to Hydra authorization URL", asyn
   assert.equal(location.searchParams.get("scope"), "openid offline verusid")
   assert.ok(location.searchParams.get("state"))
   assert.ok(location.searchParams.get("nonce"))
+  assert.ok(location.searchParams.get("code_challenge"))
+  assert.equal(location.searchParams.get("code_challenge_method"), "S256")
   assert.match(String(response.headers["set-cookie"]), /verusid_login_session=/)
+  assert.match(String(response.headers["set-cookie"]), /HttpOnly/)
+  assert.match(String(response.headers["set-cookie"]), /SameSite=Lax/)
 })
 
 test("/callback rejects missing saved state before token exchange", async () => {
-  const response = await invoke(
-    createApp({ config: baseConfig }),
-    "GET",
-    "/callback?code=fake-code&state=returned-state",
-  )
+  const response = await request(createApp({ config: baseConfig }))
+    .get("/callback?code=fake-code&state=returned-state")
 
   assert.equal(response.status, 400)
-  assert.match(response.body, /State validation failed/)
-  assert.match(response.body, /Missing saved state/)
+  assert.match(response.text, /State validation failed/)
+  assert.match(response.text, /Missing saved state/)
 })
 
 test("/callback creates sanitized session after verified VerusID OAuth response", async () => {
   clearOidcCache()
-  const sessions = new Map([
-    ["session-123", { oauth: { state: "saved-state", nonce: "saved-nonce" } }],
-  ])
+  const app = createApp({ config: baseConfig })
+  const agent = request.agent(app)
+  const login = await agent.get("/login")
+  const location = new URL(login.headers.location)
+  const nonce = location.searchParams.get("nonce")
+  const state = location.searchParams.get("state")
   const { token, accessToken, jwk } = createSignedIdToken({
-    nonce: "saved-nonce",
+    nonce,
     atHashAccessToken: "access-token-value",
   })
-  const originalFetch = installFetchMock({ token, accessToken, jwk })
+  const fetchMock = installFetchMock({ token, accessToken, jwk })
 
   try {
-    const app = createApp({ config: baseConfig, sessions })
-    const callback = await invoke(
-      app,
-      "GET",
-      "/callback?code=returned-code&state=saved-state",
-      { cookie: "verusid_login_session=session-123" },
-    )
+    const callback = await agent.get(`/callback?code=returned-code&state=${encodeURIComponent(state)}`)
 
     assert.equal(callback.status, 302)
     assert.equal(callback.headers.location, "/")
+    assert.ok(fetchMock.tokenBodies[0].get("code_verifier"))
 
-    const me = await invoke(app, "GET", "/me", {
-      cookie: "verusid_login_session=session-123",
-    })
-    const body = JSON.parse(me.body)
+    const me = await agent.get("/me")
+    const body = me.body
 
     assert.equal(me.status, 200)
     assert.equal(body.authenticated, true)
@@ -96,44 +99,39 @@ test("/callback creates sanitized session after verified VerusID OAuth response"
     assert.equal(body.refreshTokenPresent, true)
     assert.equal(body.debugTokens, undefined)
   } finally {
-    global.fetch = originalFetch
+    global.fetch = fetchMock.originalFetch
     clearOidcCache()
   }
 })
 
 test("/me includes raw tokens only when SHOW_DEBUG_TOKENS is enabled", async () => {
   clearOidcCache()
-  const sessions = new Map([
-    ["debug-session", { oauth: { state: "saved-state", nonce: "saved-nonce" } }],
-  ])
   const config = { ...baseConfig, showDebugTokens: true }
+  const app = createApp({ config })
+  const agent = request.agent(app)
+  const login = await agent.get("/login")
+  const location = new URL(login.headers.location)
+  const nonce = location.searchParams.get("nonce")
+  const state = location.searchParams.get("state")
   const { token, accessToken, jwk } = createSignedIdToken({
-    nonce: "saved-nonce",
+    nonce,
     atHashAccessToken: "access-token-value",
   })
-  const originalFetch = installFetchMock({ token, accessToken, jwk })
+  const fetchMock = installFetchMock({ token, accessToken, jwk })
 
   try {
-    const app = createApp({ config, sessions })
-    const callback = await invoke(
-      app,
-      "GET",
-      "/callback?code=returned-code&state=saved-state",
-      { cookie: "verusid_login_session=debug-session" },
-    )
+    const callback = await agent.get(`/callback?code=returned-code&state=${encodeURIComponent(state)}`)
 
     assert.equal(callback.status, 302)
-    const me = await invoke(app, "GET", "/me", {
-      cookie: "verusid_login_session=debug-session",
-    })
-    const body = JSON.parse(me.body)
+    const me = await agent.get("/me")
+    const body = me.body
 
     assert.equal(me.status, 200)
     assert.equal(body.debugTokens.access_token, "access-token-value")
     assert.equal(body.debugTokens.refresh_token, "refresh-token-value")
     assert.equal(body.debugTokens.id_token, token)
   } finally {
-    global.fetch = originalFetch
+    global.fetch = fetchMock.originalFetch
     clearOidcCache()
   }
 })
@@ -151,79 +149,68 @@ test("startup warnings catch placeholder and unsafe production env", () => {
 
   assert.ok(warnings.some((warning) => warning.includes("SESSION_SECRET")))
   assert.ok(warnings.some((warning) => warning.includes("HTTPS REDIRECT_URI")))
-  assert.ok(warnings.some((warning) => warning.includes("in-memory session Map")))
+  assert.ok(warnings.some((warning) => warning.includes("express-session")))
   assert.ok(warnings.some((warning) => warning.includes("LOCAL_HOST")))
 })
 
 test("/logout clears the local app session", async () => {
-  const sessions = new Map([
-    ["session-123", { login: { subject: "iUserAddress", verus: verusClaims } }],
-  ])
-  const app = createApp({ config: baseConfig, sessions })
-
-  const logout = await invoke(app, "POST", "/logout", {
-    cookie: "verusid_login_session=session-123",
+  clearOidcCache()
+  const app = createApp({ config: baseConfig })
+  const agent = request.agent(app)
+  const login = await agent.get("/login")
+  const location = new URL(login.headers.location)
+  const { token, accessToken, jwk } = createSignedIdToken({
+    nonce: location.searchParams.get("nonce"),
+    atHashAccessToken: "access-token-value",
   })
+  const fetchMock = installFetchMock({ token, accessToken, jwk })
+
+  try {
+    const callback = await agent.get(`/callback?code=returned-code&state=${encodeURIComponent(location.searchParams.get("state"))}`)
+    assert.equal(callback.status, 302)
+  } finally {
+    global.fetch = fetchMock.originalFetch
+    clearOidcCache()
+  }
+
+  const logout = await agent.post("/logout")
 
   assert.equal(logout.status, 302)
 
-  const me = await invoke(app, "GET", "/me", {
-    cookie: "verusid_login_session=session-123",
-  })
+  const me = await agent.get("/me")
   assert.equal(me.status, 401)
-  assert.deepEqual(JSON.parse(me.body), { authenticated: false })
+  assert.deepEqual(me.body, { authenticated: false })
 })
 
-function invoke(app, method, url, headers = {}, body = "") {
-  return new Promise((resolve, reject) => {
-    const req = new Readable({
-      read() {
-        this.push(body || null)
-      },
-    })
-    req.method = method
-    req.url = url
-    req.headers = headers
-    req.connection = { encrypted: false, remoteAddress: "127.0.0.1" }
-    req.socket = req.connection
-
-    const chunks = []
-    const res = new Writable({
-      write(chunk, _encoding, callback) {
-        chunks.push(Buffer.from(chunk))
-        callback()
-      },
-    })
-    res.statusCode = 200
-    res.headers = {}
-    res.setHeader = (name, value) => {
-      res.headers[name.toLowerCase()] = value
-    }
-    res.getHeader = (name) => res.headers[name.toLowerCase()]
-    res.removeHeader = (name) => {
-      delete res.headers[name.toLowerCase()]
-    }
-    res.writeHead = (statusCode, headersToSet = {}) => {
-      res.statusCode = statusCode
-      for (const [name, value] of Object.entries(headersToSet)) {
-        res.setHeader(name, value)
+test("/callback reports missing saved PKCE verifier", async () => {
+  const client = {
+    createLoginRequest() {
+      return {
+        authorizationUrl: new URL("http://192.168.0.160:4444/oauth2/auth?state=saved-state&nonce=saved-nonce"),
+        state: "saved-state",
+        nonce: "saved-nonce",
       }
-      return res
-    }
-    res.end = (chunk) => {
-      if (chunk) {
-        chunks.push(Buffer.from(chunk))
-      }
-      resolve({
-        status: res.statusCode,
-        headers: res.headers,
-        body: Buffer.concat(chunks).toString("utf8"),
-      })
-    }
+    },
+    completeLogin(options) {
+      assert.equal(options.codeVerifier, undefined)
+      throw new VerusOAuthError(
+        VerusOAuthErrorCode.MISSING_CODE_VERIFIER,
+        "Missing saved PKCE code verifier.",
+      )
+    },
+    toPublicSession(session) {
+      return session
+    },
+  }
+  const app = createApp({ config: baseConfig, client })
+  const agent = request.agent(app)
+  await agent.get("/login")
+  const callback = await agent.get("/callback?code=returned-code&state=saved-state")
 
-    app.handle(req, res, reject)
-  })
-}
+  assert.equal(callback.status, 400)
+  assert.match(callback.text, /Missing PKCE verifier/)
+  assert.match(callback.text, /Missing saved PKCE code verifier/)
+})
 
 function createSignedIdToken({ nonce, atHashAccessToken }) {
   const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
@@ -255,9 +242,11 @@ function createSignedIdToken({ nonce, atHashAccessToken }) {
 
 function installFetchMock({ token, accessToken, jwk }) {
   const originalFetch = global.fetch
-  global.fetch = async (url) => {
+  const tokenBodies = []
+  global.fetch = async (url, init) => {
     const value = String(url)
     if (value.endsWith("/oauth2/token")) {
+      tokenBodies.push(init.body)
       return textJsonResponse({
         access_token: accessToken,
         id_token: token,
@@ -286,7 +275,7 @@ function installFetchMock({ token, accessToken, jwk }) {
     }
     throw new Error(`Unexpected fetch ${url}`)
   }
-  return originalFetch
+  return { originalFetch, tokenBodies }
 }
 
 function signJwt(privateKey, header, claims) {

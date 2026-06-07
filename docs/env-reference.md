@@ -19,6 +19,16 @@ Run `npm run doctor:local` after changing local OAuth settings and after the loc
 
 The hardcoded local default is retained for compatibility with the verified local setup. For phone testing, explicitly set `LOCAL_HOST` to the current LAN IP and use the same value when starting the stack, registering clients, running doctor, and opening the example app.
 
+Production config validation expects HTTPS `REDIRECT_URI` and `HYDRA_PUBLIC_URL`,
+valid URL values, finite positive `PORT` and `OAUTH_HTTP_TIMEOUT_MS`, private
+Hydra admin access, non-local secrets, and the default `openid offline verusid`
+scope unless your app deliberately owns a different scope contract.
+
+The Express example uses `express-session` and stores `state`, `nonce`, and the
+PKCE `codeVerifier` server-side during `/login`. `/callback` must pass the saved
+verifier to `completeLogin()`; missing verifiers are rejected before token
+exchange.
+
 ## Command-Driven Troubleshooting
 
 Symptom: the phone cannot open the wallet approval page.
