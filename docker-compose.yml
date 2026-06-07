@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hydra
+      POSTGRES_PASSWORD: hydra
+      POSTGRES_DB: hydra
+    volumes:
+      - hydra-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydra -d hydra"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  hydra:
+    image: oryd/hydra:v2.3.0
+    command: serve all --dev --config /etc/config/hydra/hydra.yml
+    environment:
+      DSN: postgres://hydra:hydra@postgres:5432/hydra?sslmode=disable
+      URLS_SELF_ISSUER: ${HYDRA_PUBLIC_URL:-http://192.168.0.160:4444}
+      URLS_LOGIN: ${CONSENT_NODE_URL:-http://192.168.0.160:3000}/login
+      URLS_CONSENT: ${CONSENT_NODE_URL:-http://192.168.0.160:3000}/consent
+      URLS_LOGOUT: ${CONSENT_NODE_URL:-http://192.168.0.160:3000}/logout
+    ports:
+      - "4444:4444"
+      - "4445:4445"
+    volumes:
+      - ./hydra.yml:/etc/config/hydra/hydra.yml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  consent-node:
+    image: node:22-alpine
+    working_dir: /app
+    env_file:
+      - ./.env.local
+    environment:
+      HYDRA_ADMIN_URL: http://hydra:4445
+      BASE_URL: ${CONSENT_NODE_URL:-http://192.168.0.160:3000}
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./consent-node:/app
+      - consent-node-modules:/app/node_modules
+    command: sh -c "export PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 PNPM_CONFIG_BLOCK_EXOTIC_SUBDEPS=false && apk add --no-cache git && corepack enable && pnpm install && pnpm dev"
+    depends_on:
+      - hydra
+
+  oauth-callback:
+    image: node:22-alpine
+    working_dir: /app
+    environment:
+      PORT: "5555"
+      HYDRA_PUBLIC_URL: ${HYDRA_PUBLIC_URL:-http://192.168.0.160:4444}
+      HYDRA_ADMIN_URL: http://hydra:4445
+      CLIENT_ID: ${CLIENT_ID:-verus-local-client}
+      CLIENT_SECRET: ${CLIENT_SECRET:-verus-local-secret}
+      REDIRECT_URI: ${REDIRECT_URI:-http://192.168.0.160:5555/callback}
+      SCOPES: ${SCOPES:-openid offline verusid}
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./oauth-callback:/app
+    command: node server.js
+    depends_on:
+      - hydra
+
+  verusid-express-login:
+    image: node:22-alpine
+    working_dir: /repo
+    environment:
+      PORT: "5560"
+      HYDRA_PUBLIC_URL: ${HYDRA_PUBLIC_URL:-http://192.168.0.160:4444}
+      HYDRA_ADMIN_URL: http://hydra:4445
+      CLIENT_ID: ${EXPRESS_LOGIN_CLIENT_ID:-verus-express-login}
+      CLIENT_SECRET: ${EXPRESS_LOGIN_CLIENT_SECRET:-verus-express-secret}
+      REDIRECT_URI: ${EXPRESS_LOGIN_REDIRECT_URI:-http://192.168.0.160:5560/callback}
+      SCOPES: ${SCOPES:-openid offline verusid}
+      SESSION_SECRET: ${EXPRESS_LOGIN_SESSION_SECRET:-local-express-login-session-secret}
+    ports:
+      - "5560:5560"
+    volumes:
+      - .:/repo
+    command: sh -c "npm install && cd examples/verusid-express-login && npm install && npm start"
+    depends_on:
+      - hydra
+
+volumes:
+  hydra-postgres:
+  consent-node-modules:

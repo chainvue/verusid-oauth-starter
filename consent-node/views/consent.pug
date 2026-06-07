@@ -1,0 +1,21 @@
+extends layout
+
+block content
+  h1 Consent
+  p #{verusName || user} is granting access to #{client && client.client_name ? client.client_name : client && client.client_id ? client.client_id : "this OAuth client"}.
+  form(method="post", action=action)
+    input(type="hidden", name="_csrf", value=csrfToken)
+    input(type="hidden", name="challenge", value=challenge)
+    if requested_scope && requested_scope.length
+      ul
+        each scope in requested_scope
+          li
+            label.check
+              input(type="checkbox", name="grant_scope", value=scope, checked)
+              span= scope
+    label.check
+      input(type="checkbox", name="remember", value="1")
+      span Remember this consent
+    .actions
+      button(type="submit", name="submit", value="Allow access") Allow access
+      button.secondary(type="submit", name="submit", value="Deny access") Deny access

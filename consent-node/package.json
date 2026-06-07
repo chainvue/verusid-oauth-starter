@@ -1,0 +1,43 @@
+{
+  "name": "verus-oauth-consent-node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only --watch src,views src/server.ts",
+    "start": "node lib/server.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ory/hydra-client-fetch": "^2.4.0-alpha.1",
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
+    "csurf": "^1.11.0",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0",
+    "pug": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "url-join": "^4.0.1",
+    "verus-typescript-primitives": "github:VerusCoin/verus-typescript-primitives",
+    "verusid-ts-client": "github:VerusCoin/verusid-ts-client"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/csurf": "^1.11.5",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.10.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/supertest": "^7.2.0",
+    "@types/url-join": "^4.0.3",
+    "supertest": "^7.2.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
+  },
+  "pnpm": {}
+}

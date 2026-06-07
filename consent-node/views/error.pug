@@ -1,0 +1,7 @@
+extends layout
+
+block content
+  h1 Error
+  p.error= message
+  if error && error.stack
+    pre= error.stack

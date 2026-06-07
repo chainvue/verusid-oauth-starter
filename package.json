@@ -1,0 +1,17 @@
+{
+  "name": "verusid-oauth-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Starter and local reference stack for server-side VerusID OAuth/OIDC login.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "doctor:local": "node scripts/doctor-local.cjs"
+  },
+  "dependencies": {
+    "@chainvue/verusid-oauth": "^0.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,53 @@
+extends layout
+
+block content
+  h1 Sign in with VerusID
+  if error
+    p.error= error
+  p Scan this request with Verus Mobile, or open it directly on this device.
+  if qrDataUrl
+    img.qr(src=qrDataUrl, alt="Verus Mobile login QR code")
+  p#status.status Waiting for Verus Mobile...
+  .actions
+    a.button(href=deeplink) Open Wallet
+    a.button.secondary(href=retryUrl) Retry
+  form(method="post", action=action)
+    input(type="hidden", name="_csrf", value=csrfToken)
+    input(type="hidden", name="challenge", value=challenge)
+    .actions
+      button.secondary(type="submit", name="submit", value="Deny access") Deny access
+  script.
+    const statusEl = document.getElementById("status");
+    const statusUrl = !{JSON.stringify(statusUrl || "")};
+    const messages = {
+      pending: "Waiting for Verus Mobile...",
+      expired: "This login request expired. Retry to create a new QR code.",
+      rejected: "The wallet rejected this login request.",
+      error: "The Verus response could not be accepted."
+    };
+
+    async function poll() {
+      try {
+        const response = await fetch(statusUrl, {
+          cache: "no-store",
+          headers: { "Accept": "application/json" }
+        });
+        const data = await response.json();
+
+        if (data.redirectTo) {
+          window.location.assign(data.redirectTo);
+          return;
+        }
+
+        statusEl.textContent = data.error || messages[data.status] || messages.pending;
+
+        if (data.status === "pending") {
+          window.setTimeout(poll, 1500);
+        }
+      } catch (_error) {
+        statusEl.textContent = "Unable to check login status. Retrying...";
+        window.setTimeout(poll, 2500);
+      }
+    }
+
+    poll();

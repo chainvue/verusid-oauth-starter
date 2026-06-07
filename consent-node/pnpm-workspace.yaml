@@ -1,0 +1,8 @@
+packages:
+  - .
+
+patchedDependencies:
+  bitcoin-ops@1.4.1: patches/bitcoin-ops@1.4.1.patch
+
+overrides:
+  '@types/express-serve-static-core': 4.19.8
