@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "commonjs",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only --watch src,views src/server.ts",
