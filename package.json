@@ -6,10 +6,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "doctor:local": "node scripts/doctor-local.cjs"
+    "doctor:local": "node scripts/doctor-local.cjs",
+    "test": "node scripts/test-local.cjs"
   },
   "dependencies": {
-    "@chainvue/verusid-oauth": "^0.1.0"
+    "@chainvue/verusid-oauth": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

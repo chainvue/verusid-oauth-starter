@@ -74,6 +74,13 @@ POST http://127.0.0.1:4445/admin/oauth2/introspect
 
 For this local stack, introspection is useful because it shows the access-token session `ext` claims and proves they match the ID token Verus claims.
 
+Hydra admin must remain private. In production, do not expose the admin
+endpoint to browsers or the public internet. If the application cannot call a
+private Hydra admin endpoint directly, configure the SDK with an
+`accessTokenVerifier` that verifies the access token through your trusted
+backend service or production authorization infrastructure and returns the
+active state plus Verus claims.
+
 ## What To Store
 
 Store only what your app needs:
@@ -98,7 +105,7 @@ The callback demo shows the raw refresh token only to make the local flow inspec
 
 - `hydra.yml` uses local development secrets and `--dev` mode.
 - The demo uses HTTP URLs on a LAN host for wallet testing.
-- Hydra admin introspection is reachable from the host at `http://127.0.0.1:4445`; do not expose Hydra admin publicly.
+- Hydra admin introspection is reachable from the host at `http://127.0.0.1:4445`; keep this endpoint private and use `accessTokenVerifier` for production verification paths that should not call Hydra admin directly.
 - Raw token JSON is intentionally visible in the callback Debug section.
 - The Verus Mobile QR/deeplink request can expire; start a new login if approval takes longer than `VERUS_LOGIN_TTL_MS`.
 - Replace local secrets, salts, URLs, and token handling before using this pattern outside local development.

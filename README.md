@@ -80,6 +80,12 @@ const config = createConfig(process.env)
 const verusOAuth = createVerusOAuthClient(config)
 ```
 
+For production, keep Hydra admin on a private backend network only. The local
+starter defaults to Hydra admin introspection because it is useful for the
+Docker demo; copied apps should provide an `accessTokenVerifier` when access
+tokens are verified by a private service, gateway, or production OAuth
+deployment that must not expose Hydra admin publicly.
+
 See [docs/copy-into-express.md](docs/copy-into-express.md), [docs/integration-guide.md](docs/integration-guide.md), and [docs/env-reference.md](docs/env-reference.md).
 
 ## Local Stack

@@ -8,6 +8,7 @@ This is the smallest production-shaped route setup from `examples/verusid-expres
 import express from "express"
 import session from "express-session"
 import {
+  assertProductionConfig,
   createConfig,
   createVerusOAuthClient,
   VerusOAuthError,
@@ -15,6 +16,9 @@ import {
 
 const app = express()
 const config = createConfig(process.env)
+if (process.env.NODE_ENV === "production") {
+  assertProductionConfig(config)
+}
 const verusOAuth = createVerusOAuthClient(config)
 
 app.use(session({
@@ -96,3 +100,15 @@ LOCAL_HOST=$LOCAL_HOST npm run doctor:local
 Keep raw access, ID, and refresh tokens out of browser-readable storage. `completeLogin()` returns a sanitized `PublicVerusSession` by default. Raw tokens are returned only with `includeRawTokens: true`; use that only for local debugging or encrypted server-side token storage.
 
 The consent node needs a Verus full node plus a consent-node signing VerusID so it can sign wallet login requests. The person logging in needs Verus Mobile with a VerusID.
+
+## Production Access Token Verification
+
+The local starter uses Hydra admin introspection at `HYDRA_ADMIN_URL` so the
+demo can compare ID-token Verus claims with access-token `ext` claims. Keep
+Hydra admin private and never publish it to browsers or the public internet.
+
+For production apps, pass `accessTokenVerifier` to `createConfig()` or
+`createVerusOAuthClient()` when token verification should happen through your
+private OAuth service, gateway, or authorization infrastructure instead of the
+local Hydra admin endpoint. The verifier should return the active state and the
+Verus claims that the SDK compares with the ID token.

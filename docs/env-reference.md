@@ -29,6 +29,11 @@ PKCE `codeVerifier` server-side during `/login`. `/callback` must pass the saved
 verifier to `completeLogin()`; missing verifiers are rejected before token
 exchange.
 
+`HYDRA_ADMIN_URL` is a local/private backend endpoint. Do not expose Hydra admin
+publicly. Production deployments that verify access tokens through another
+trusted backend should configure the SDK `accessTokenVerifier` hook so the app
+can receive the active state and Verus claims without publishing Hydra admin.
+
 ## Command-Driven Troubleshooting
 
 Symptom: the phone cannot open the wallet approval page.

@@ -95,6 +95,11 @@ Automated checks can pass without wallet approval. A full end-to-end approval re
 
 Keep raw OAuth tokens on the server. The default `/me` response intentionally excludes access, ID, and refresh tokens.
 
+The local default uses private Hydra admin introspection. Keep `HYDRA_ADMIN_URL`
+reachable only by trusted backend services. For production copies that should
+verify access tokens through a different private service, configure the SDK
+`accessTokenVerifier` hook instead of exposing Hydra admin.
+
 ## License
 
 MIT License. Copyright (c) 2026 Robert Lech.
