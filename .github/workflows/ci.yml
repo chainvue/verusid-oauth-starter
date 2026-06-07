@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  starter:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/verusid-express-login/package-lock.json
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install example dependencies
+        run: npm install
+        working-directory: examples/verusid-express-login
+
+      - name: Test Express login example
+        run: npm test
+        working-directory: examples/verusid-express-login
+
+      - name: Check local doctor diagnostics
+        run: |
+          set +e
+          npm run doctor:local > doctor-output.txt 2>&1
+          status=$?
+          set -e
+
+          cat doctor-output.txt
+          test "$status" -ne 0
+          grep -F "Node.js version" doctor-output.txt
+          grep -F "LAN host" doctor-output.txt
+          grep -F "Hydra discovery" doctor-output.txt
+          grep -F "Hydra token endpoint" doctor-output.txt
+          grep -F "Hydra admin endpoint" doctor-output.txt
+          grep -F "Hydra client registration" doctor-output.txt
