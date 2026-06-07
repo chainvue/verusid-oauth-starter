@@ -19,6 +19,7 @@ export const baseUrl = process.env.BASE_URL || "http://192.168.0.160:3000"
 
 export const verusServiceId = process.env.VERUS_SERVICE_ID || "fum@"
 export const verusLoginTtlMs = Number(process.env.VERUS_LOGIN_TTL_MS || 300000)
+export const verusRpcTimeoutMs = Number(process.env.VERUS_RPC_TIMEOUT_MS || 10000)
 export const verusChain = process.env.VERUS_CHAIN || "VRSCTEST"
 
 export const verusId = new VerusIdInterface(
@@ -40,6 +41,7 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
   const configuredHydraAdminUrl = env.HYDRA_ADMIN_URL || "http://127.0.0.1:4445"
   const configuredServiceId = env.VERUS_SERVICE_ID || "fum@"
   const configuredTtl = Number(env.VERUS_LOGIN_TTL_MS || 300000)
+  const configuredRpcTimeout = Number(env.VERUS_RPC_TIMEOUT_MS || 10000)
   const configuredRpcUser = env.VERUS_RPC_USER || ""
   const configuredRpcPassword = env.VERUS_RPC_PASSWORD || ""
 
@@ -64,6 +66,10 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
 
   if (!Number.isInteger(configuredTtl) || !Number.isFinite(configuredTtl) || configuredTtl <= 0) {
     errors.push("Production VERUS_LOGIN_TTL_MS must be a finite positive integer.")
+  }
+
+  if (!Number.isInteger(configuredRpcTimeout) || !Number.isFinite(configuredRpcTimeout) || configuredRpcTimeout <= 0) {
+    errors.push("Production VERUS_RPC_TIMEOUT_MS must be a finite positive integer.")
   }
 
   if (Boolean(configuredRpcUser) !== Boolean(configuredRpcPassword)) {

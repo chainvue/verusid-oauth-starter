@@ -22,6 +22,7 @@ import {
   verusChain,
   verusId,
   verusLoginTtlMs,
+  verusRpcTimeoutMs,
   verusServiceId,
 } from "./config"
 
@@ -123,6 +124,21 @@ function parseResponseValue(value: unknown) {
   return response
 }
 
+async function withRpcTimeout<T>(operation: Promise<T>, label: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout>
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${verusRpcTimeoutMs}ms.`))
+    }, verusRpcTimeoutMs)
+  })
+
+  try {
+    return await Promise.race([operation, timeoutPromise])
+  } finally {
+    clearTimeout(timeout!)
+  }
+}
+
 async function createSignedLoginConsentRequest(
   serviceIAddress: string,
   systemId: string,
@@ -142,10 +158,13 @@ async function createSignedLoginConsentRequest(
     signing_id: serviceIAddress,
     challenge,
   })
-  const signature = await verusId.interface.signData({
-    address: serviceIAddress,
-    datahash: challenge.toSha256().toString("hex"),
-  })
+  const signature = await withRpcTimeout(
+    verusId.interface.signData({
+      address: serviceIAddress,
+      datahash: challenge.toSha256().toString("hex"),
+    }),
+    "Verus login consent signing",
+  )
 
   if (signature.error) {
     throw new Error(signature.error.message)
@@ -161,11 +180,14 @@ async function createSignedLoginConsentRequest(
     IDENTITY_AUTH_SIG_VDXF_KEY,
   )
 
-  const requestVerified = await verusId.verifyLoginConsentRequest(
-    request,
-    serviceIdentity,
-    systemId,
-    Math.floor(Date.now() / 1000),
+  const requestVerified = await withRpcTimeout(
+    verusId.verifyLoginConsentRequest(
+      request,
+      serviceIdentity,
+      systemId,
+      Math.floor(Date.now() / 1000),
+    ),
+    "Verus login consent request verification",
   )
 
   if (!requestVerified) {
@@ -187,7 +209,10 @@ export function removePendingLogin(id: string) {
 export async function createPendingLogin(loginChallenge: string) {
   cleanupExpired()
 
-  const serviceIdentity = await verusId.interface.getIdentity(verusServiceId)
+  const serviceIdentity = await withRpcTimeout(
+    verusId.interface.getIdentity(verusServiceId),
+    "Verus service identity lookup",
+  )
   if (serviceIdentity.error) {
     throw new Error(serviceIdentity.error.message)
   }
@@ -198,7 +223,10 @@ export async function createPendingLogin(loginChallenge: string) {
   }
   const callbackUrl = `${baseUrl}/verus/callback`
   const challengeId = randomIAddressLikeId()
-  const systemId = await verusId.getChainId()
+  const systemId = await withRpcTimeout(
+    verusId.getChainId(),
+    "Verus chain ID lookup",
+  )
   const qrRequest = await createSignedLoginConsentRequest(
     serviceIAddress,
     systemId,
@@ -294,13 +322,19 @@ export async function completePendingLogin(response: LoginConsentResponse) {
       throw new Error("The wallet response does not match the pending request.")
     }
 
-    const verified = await verusId.verifyLoginConsentResponse(response)
+    const verified = await withRpcTimeout(
+      verusId.verifyLoginConsentResponse(response),
+      "Verus login consent response verification",
+    )
     if (!verified) {
       throw new Error("The Verus login response signature is invalid.")
     }
 
     const userIAddress = response.signing_id
-    const identity = await verusId.interface.getIdentity(userIAddress)
+    const identity = await withRpcTimeout(
+      verusId.interface.getIdentity(userIAddress),
+      "Verus wallet identity lookup",
+    )
     const friendlyName = identity.error
       ? undefined
       : identity.result.identity.name || undefined
