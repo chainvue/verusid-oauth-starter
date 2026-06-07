@@ -1,3 +1,7 @@
+# Local development stack only.
+# Do not use this Compose file as a production deployment template: Hydra runs
+# in dev mode, local example secrets are used, and Hydra admin is published to
+# the host for diagnostics.
 services:
   postgres:
     image: postgres:16-alpine

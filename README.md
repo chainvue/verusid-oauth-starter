@@ -90,6 +90,12 @@ See [docs/copy-into-express.md](docs/copy-into-express.md), [docs/integration-gu
 
 ## Local Stack
 
+`docker-compose.yml` and `hydra.yml` are local development files. They publish
+Hydra admin for diagnostics and use local example secrets so the starter is easy
+to run on a laptop. Do not use them as production deployment templates.
+Production consent-node startup should run with `NODE_ENV=production` so unsafe
+local defaults are rejected before the service listens.
+
 The stack includes:
 
 - Ory Hydra public/admin endpoints.

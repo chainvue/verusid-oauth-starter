@@ -63,6 +63,12 @@ function filterGrantableScopes(scopes: unknown): string[] {
     .filter((scope) => GRANTABLE_SCOPES.has(scope))
 }
 
+function filterRequestedGrantableScopes(submittedScopes: unknown, requestedScopes: unknown): string[] {
+  const requested = new Set(filterGrantableScopes(requestedScopes))
+  return filterGrantableScopes(submittedScopes)
+    .filter((scope) => requested.has(scope))
+}
+
 router.get("/", csrfProtection, (req, res, next) => {
   const challenge = new URL(req.originalUrl, "http://localhost").searchParams.get("consent_challenge") || ""
 
@@ -121,7 +127,6 @@ router.post("/", csrfProtection, (req, res, next) => {
   const grantScope = Array.isArray(req.body.grant_scope)
     ? req.body.grant_scope
     : [req.body.grant_scope].filter(Boolean)
-  const grantableScope = filterGrantableScopes(grantScope)
 
   hydraAdmin
     .getOAuth2ConsentRequest({ consentChallenge: challenge })
@@ -129,7 +134,7 @@ router.post("/", csrfProtection, (req, res, next) => {
       return hydraAdmin.acceptOAuth2ConsentRequest({
         consentChallenge: challenge,
         acceptOAuth2ConsentRequest: {
-          grant_scope: grantableScope,
+          grant_scope: filterRequestedGrantableScopes(grantScope, consentRequest.requested_scope),
           grant_access_token_audience:
             consentRequest.requested_access_token_audience,
           session: buildVerusTokenSession(consentRequest),

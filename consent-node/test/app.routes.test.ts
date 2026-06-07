@@ -274,6 +274,41 @@ describe("consent-node routes", () => {
     })
   })
 
+  it("does not grant local demo scopes that Hydra did not request", async () => {
+    hydraAdmin.getOAuth2ConsentRequest.mockResolvedValue({
+      subject: "iUserAddress",
+      requested_scope: ["openid"],
+      requested_access_token_audience: ["api"],
+      context: {
+        verus_id: "iUserAddress",
+        verus_id_name: "user@",
+        verus_chain: "VRSCTEST",
+        verus_auth_method: "verus_login_consent",
+      },
+    })
+    hydraAdmin.acceptOAuth2ConsentRequest.mockResolvedValue({
+      redirect_to: "http://192.168.0.160:4444/continue",
+    })
+
+    await request(app)
+      .post("/consent")
+      .type("form")
+      .send({
+        challenge: "consent-123",
+        grant_scope: ["openid", "offline", "verusid"],
+        remember: "1",
+        _csrf: "test-csrf",
+      })
+      .expect(302)
+
+    expect(hydraAdmin.acceptOAuth2ConsentRequest).toHaveBeenCalledWith({
+      consentChallenge: "consent-123",
+      acceptOAuth2ConsentRequest: expect.objectContaining({
+        grant_scope: ["openid"],
+      }),
+    })
+  })
+
   it("copies Verus claims into skipped consent token sessions", async () => {
     const expectedClaims = {
       verus_id: "iUserAddress",

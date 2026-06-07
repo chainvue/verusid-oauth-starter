@@ -30,9 +30,23 @@ jobs:
         run: npm ci
         working-directory: examples/verusid-express-login
 
+      - name: Install consent-node dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+        working-directory: consent-node
+
       - name: Test Express login example
         run: npm test
         working-directory: examples/verusid-express-login
+
+      - name: Typecheck consent-node
+        run: pnpm typecheck
+        working-directory: consent-node
+
+      - name: Test consent-node
+        run: pnpm test:run
+        working-directory: consent-node
 
       - name: Validate Docker Compose config
         run: docker compose config
