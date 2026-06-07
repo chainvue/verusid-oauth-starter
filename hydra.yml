@@ -1,3 +1,5 @@
+# Local development Hydra config only. Replace all secrets, salts, URLs, and
+# dev-mode assumptions before adapting this stack outside local testing.
 serve:
   cookies:
     same_site_mode: Lax
