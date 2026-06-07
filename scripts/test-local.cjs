@@ -4,6 +4,12 @@ const { spawnSync } = require("node:child_process")
 
 const checks = [
   {
+    label: "OAuth callback dashboard tests",
+    command: "npm",
+    args: ["test"],
+    cwd: "oauth-callback",
+  },
+  {
     label: "Express example tests",
     command: "npm",
     args: ["test"],

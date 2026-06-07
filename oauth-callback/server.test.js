@@ -3,9 +3,11 @@ const crypto = require("node:crypto")
 const test = require("node:test")
 
 const {
+  buildAuthorizationUrl,
   buildSignInResult,
   buildVerificationChecklist,
   computeAtHash,
+  createPkceChallenge,
   renderClaimsSection,
   renderIntegrationSection,
   renderResultSummary,
@@ -20,6 +22,15 @@ const verusClaims = {
   verus_auth_method: "verus_login_consent",
   verus_login_at: 1780828245,
 }
+
+test("authorization URL includes PKCE challenge when verifier is provided", () => {
+  const url = buildAuthorizationUrl("state-123", "nonce-123", "verifier-123")
+
+  assert.equal(url.searchParams.get("state"), "state-123")
+  assert.equal(url.searchParams.get("nonce"), "nonce-123")
+  assert.equal(url.searchParams.get("code_challenge"), createPkceChallenge("verifier-123"))
+  assert.equal(url.searchParams.get("code_challenge_method"), "S256")
+})
 
 test("callback summary reports exact granted scope and refresh-token presence", () => {
   const tokenResult = {

@@ -12,6 +12,7 @@ const redirectUri = process.env.REDIRECT_URI || `http://${localHost}:5555/callba
 const scopes = process.env.SCOPES || "openid offline verusid"
 const stateCookieName = "verus_oauth_state"
 const nonceCookieName = "verus_oauth_nonce"
+const codeVerifierCookieName = "verus_oauth_code_verifier"
 const verusClaimNames = [
   "verus_id_name",
   "verus_id",
@@ -93,7 +94,8 @@ function renderHome(res) {
 function redirectToHydra(res) {
   const state = randomValue()
   const nonce = randomValue()
-  const authUrl = buildAuthorizationUrl(state, nonce)
+  const codeVerifier = randomValue()
+  const authUrl = buildAuthorizationUrl(state, nonce, codeVerifier)
 
   res.writeHead(302, {
     location: authUrl.toString(),
@@ -110,6 +112,12 @@ function redirectToHydra(res) {
         maxAge: 600,
         path: "/callback",
       }),
+      serializeCookie(codeVerifierCookieName, codeVerifier, {
+        httpOnly: true,
+        sameSite: "Lax",
+        maxAge: 600,
+        path: "/callback",
+      }),
     ],
   })
   res.end()
@@ -119,18 +127,19 @@ async function renderCallback(req, res, url) {
   const cookies = parseCookies(req.headers.cookie || "")
   const expectedState = cookies[stateCookieName]
   const expectedNonce = cookies[nonceCookieName]
+  const codeVerifier = cookies[codeVerifierCookieName]
   const code = url.searchParams.get("code")
   const state = url.searchParams.get("state")
   const error = url.searchParams.get("error")
   const errorDescription = url.searchParams.get("error_description")
   const stateValidation = validateState(expectedState, state)
-  const authorizationUrl = expectedState && expectedNonce ? buildAuthorizationUrl(expectedState, expectedNonce).toString() : buildAuthorizationUrl("STATE_FROM_SESSION", "NONCE_FROM_SESSION").toString()
+  const authorizationUrl = expectedState && expectedNonce ? buildAuthorizationUrl(expectedState, expectedNonce, codeVerifier || "CODE_VERIFIER_FROM_SESSION").toString() : buildAuthorizationUrl("STATE_FROM_SESSION", "NONCE_FROM_SESSION", "CODE_VERIFIER_FROM_SESSION").toString()
   let tokenResult = null
   let idTokenDisplay = { ok: false, verified: false, claims: null, header: null, checks: [], error: "No ID token returned" }
   let introspectionResult = null
 
-  if (code && stateValidation.ok) {
-    tokenResult = await exchangeCode(code)
+  if (code && stateValidation.ok && codeVerifier) {
+    tokenResult = await exchangeCode(code, codeVerifier)
     if (tokenResult.ok) {
       idTokenDisplay = await verifyIdToken(tokenResult.body?.id_token, tokenResult.body?.access_token, expectedNonce)
       if (tokenResult.body?.access_token) {
@@ -142,6 +151,7 @@ async function renderCallback(req, res, url) {
   const hasCallbackError = Boolean(
     error ||
       !code ||
+      !codeVerifier ||
       !stateValidation.ok ||
       tokenResult?.error ||
       (tokenResult?.ok && !idTokenDisplay.verified) ||
@@ -199,6 +209,7 @@ async function renderCallback(req, res, url) {
           ${error ? renderField("Error", error) : ""}
           ${errorDescription ? renderField("Description", errorDescription) : ""}
           ${state ? renderField("Returned state", state) : ""}
+          ${renderField("PKCE verifier", codeVerifier ? "present" : "missing", codeVerifier ? "success" : "error")}
           ${renderField("State validation", stateValidation.message, stateValidation.ok ? "success" : "error")}
         </dl>
         ${renderTokenSection(tokenResult, introspectionResult)}
@@ -221,12 +232,18 @@ async function renderCallback(req, res, url) {
           maxAge: 0,
           path: "/callback",
         }),
+        serializeCookie(codeVerifierCookieName, "", {
+          httpOnly: true,
+          sameSite: "Lax",
+          maxAge: 0,
+          path: "/callback",
+        }),
       ],
     },
   )
 }
 
-function buildAuthorizationUrl(state, nonce) {
+function buildAuthorizationUrl(state, nonce, codeVerifier) {
   const authUrl = new URL("/oauth2/auth", hydraPublicUrl)
   authUrl.searchParams.set("client_id", clientId)
   authUrl.searchParams.set("response_type", "code")
@@ -234,15 +251,22 @@ function buildAuthorizationUrl(state, nonce) {
   authUrl.searchParams.set("redirect_uri", redirectUri)
   authUrl.searchParams.set("state", state)
   authUrl.searchParams.set("nonce", nonce)
+  if (codeVerifier) {
+    authUrl.searchParams.set("code_challenge", createPkceChallenge(codeVerifier))
+    authUrl.searchParams.set("code_challenge_method", "S256")
+  }
   return authUrl
 }
 
-async function exchangeCode(code) {
+async function exchangeCode(code, codeVerifier) {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
     redirect_uri: redirectUri,
   })
+  if (codeVerifier) {
+    body.set("code_verifier", codeVerifier)
+  }
 
   try {
     const response = await fetch(`${hydraPublicUrl}/oauth2/token`, {
@@ -420,7 +444,7 @@ function tokenExchangeSnippet(code) {
 Authorization: Basic base64(${clientId}:${clientSecret})
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`
+grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}&code_verifier=CODE_VERIFIER_FROM_SESSION`
 }
 
 function introspectionSnippet(token) {
@@ -808,6 +832,10 @@ function randomValue() {
   return crypto.randomBytes(24).toString("base64url")
 }
 
+function createPkceChallenge(codeVerifier) {
+  return crypto.createHash("sha256").update(codeVerifier).digest("base64url")
+}
+
 function parseJson(value) {
   try {
     return JSON.parse(value)
@@ -908,8 +936,10 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildAuthorizationUrl,
   buildSignInResult,
   buildVerificationChecklist,
+  createPkceChallenge,
   computeAtHash,
   renderClaimsSection,
   renderIntegrationSection,
