@@ -81,8 +81,9 @@ Register the confidential Hydra client with:
 For the local example:
 
 ```sh
-LOCAL_HOST=192.168.0.160 ./scripts/create-verusid-express-login-client.sh
-npm run doctor:local
+LOCAL_HOST=$(ipconfig getifaddr en0)
+LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-express-login-client.sh
+LOCAL_HOST=$LOCAL_HOST npm run doctor:local
 ```
 
 ## Session Rules

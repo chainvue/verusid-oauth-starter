@@ -1,4 +1,5 @@
-const PLACEHOLDER_HOST = "192.168.0.160"
+const PLACEHOLDER_HOST = "<LAN-IP>"
+const COMPAT_LOCAL_HOST = "192.168.0.160"
 
 export function getStartupWarnings(config, env = process.env) {
   const warnings = []
@@ -15,7 +16,9 @@ export function getStartupWarnings(config, env = process.env) {
   warnings.push("The example uses an in-memory session Map; replace it with your production session store.")
 
   if (config.localHost === PLACEHOLDER_HOST || String(config.redirectUri).includes(PLACEHOLDER_HOST)) {
-    warnings.push(`LOCAL_HOST is still ${PLACEHOLDER_HOST}; set LOCAL_HOST to a LAN-reachable address for phone testing.`)
+    warnings.push("Replace <LAN-IP> with a LAN-reachable LOCAL_HOST before phone testing.")
+  } else if (config.localHost === COMPAT_LOCAL_HOST || String(config.redirectUri).includes(COMPAT_LOCAL_HOST)) {
+    warnings.push("LOCAL_HOST is using the bundled compatibility default; set LOCAL_HOST explicitly to your current LAN IP for phone testing.")
   }
 
   return warnings

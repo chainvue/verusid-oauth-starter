@@ -2,7 +2,8 @@
 
 const fs = require("node:fs")
 
-const PLACEHOLDER_HOST = "192.168.0.160"
+const PLACEHOLDER_HOST = "<LAN-IP>"
+const COMPAT_LOCAL_HOST = "192.168.0.160"
 
 async function main() {
   const { createConfig, DEFAULT_SCOPE } = await import("@chainvue/verusid-oauth")
@@ -45,8 +46,15 @@ function checkLanHost(config) {
   if (config.localHost === PLACEHOLDER_HOST || config.redirectUri.includes(PLACEHOLDER_HOST)) {
     return warn(
       "LAN host",
-      `LOCAL_HOST is still ${PLACEHOLDER_HOST}.`,
+      "LOCAL_HOST still contains <LAN-IP>.",
       "LOCAL_HOST=$(ipconfig getifaddr en0) npm run doctor:local",
+    )
+  }
+  if (config.localHost === COMPAT_LOCAL_HOST || config.redirectUri.includes(COMPAT_LOCAL_HOST)) {
+    return warn(
+      "LAN host",
+      "LOCAL_HOST is using the bundled compatibility default.",
+      "Set LOCAL_HOST explicitly to the current LAN IP for phone testing.",
     )
   }
   return pass("LAN host", config.localHost)

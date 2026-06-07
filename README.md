@@ -10,8 +10,11 @@ Prerequisites:
 
 - Node.js 20 or newer.
 - Docker for the local Hydra/Postgres stack.
+- A LAN host IP that both your browser and phone can reach.
 - Verus Mobile with a VerusID for wallet approval testing.
-- A consent node backed by a Verus full node that can sign for the configured consent-node VerusID.
+- Consent-node health, Verus full-node RPC access, and consent-node signing for the configured `VERUS_SERVICE_ID`.
+
+Automated checks can verify the local OAuth stack without approving a wallet prompt. A complete end-to-end login requires Verus Mobile approval from a phone that can reach this laptop on the LAN.
 
 Clone and enter the starter:
 
@@ -20,33 +23,44 @@ git clone https://github.com/chainvue/verusid-oauth-starter.git
 cd verusid-oauth-starter
 ```
 
-Install the starter dependency and run the preflight:
+Discover your LAN host and install dependencies:
 
 ```sh
+LOCAL_HOST=$(ipconfig getifaddr en0)
 npm install
-npm run doctor:local
+cp .env.example .env.local
 ```
 
-Start the local stack and register the Express example client:
+Start the local stack and register the Express example client with the same LAN host:
 
 ```sh
-LOCAL_HOST=192.168.0.160 ./scripts/start-stack.sh
-LOCAL_HOST=192.168.0.160 ./scripts/create-verusid-express-login-client.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/start-stack.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-express-login-client.sh
 ```
 
-Run the Express example:
+The Docker stack includes a packaged copy of the Express example on port `5560`. Stop only that service before running the cloned example locally on the same port:
 
 ```sh
+docker compose stop verusid-express-login
 cd examples/verusid-express-login
 npm install
-npm start
+LOCAL_HOST=$LOCAL_HOST npm start
+```
+
+In another terminal from the repo root, run the preflight after the stack and client are ready:
+
+```sh
+LOCAL_HOST=$(ipconfig getifaddr en0)
+LOCAL_HOST=$LOCAL_HOST npm run doctor:local
 ```
 
 Open:
 
 ```text
-http://192.168.0.160:5560/
+http://$LOCAL_HOST:5560/
 ```
+
+If your phone cannot open the QR/deeplink target, re-check `LOCAL_HOST` and confirm the phone is on a network that can reach the browser host.
 
 ## SDK Install
 
@@ -81,9 +95,10 @@ The stack includes:
 Common commands:
 
 ```sh
-LOCAL_HOST=192.168.0.160 ./scripts/start-stack.sh
-LOCAL_HOST=192.168.0.160 ./scripts/status-stack.sh
-LOCAL_HOST=192.168.0.160 ./scripts/verify-local-flow.sh
+LOCAL_HOST=$(ipconfig getifaddr en0)
+LOCAL_HOST=$LOCAL_HOST ./scripts/start-stack.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/status-stack.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/verify-local-flow.sh
 ./scripts/stop-stack.sh
 ```
 
