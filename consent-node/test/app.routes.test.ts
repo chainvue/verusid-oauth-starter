@@ -68,6 +68,37 @@ describe("consent-node routes", () => {
     expect(response.body).toEqual({ error: "Too many requests" })
   })
 
+  it("bounds tracked rate limit clients and prunes expired entries", async () => {
+    const { createRateLimit } = await import("../src/app")
+    const originalDateNow = Date.now
+    let now = 1000
+    Date.now = () => now
+    const limitedApp = express()
+    limitedApp.set("trust proxy", true)
+    limitedApp.use(createRateLimit({ windowMs: 1000, max: 1, maxClients: 1 }))
+    limitedApp.get("/limited", (_req, res) => res.status(200).json({ ok: true }))
+
+    try {
+      await request(limitedApp)
+        .get("/limited")
+        .set("X-Forwarded-For", "203.0.113.10")
+        .expect(200, { ok: true })
+
+      await request(limitedApp)
+        .get("/limited")
+        .set("X-Forwarded-For", "203.0.113.11")
+        .expect(429, { error: "Too many clients" })
+
+      now += 1001
+      await request(limitedApp)
+        .get("/limited")
+        .set("X-Forwarded-For", "203.0.113.11")
+        .expect(200, { ok: true })
+    } finally {
+      Date.now = originalDateNow
+    }
+  })
+
   it("requires a Hydra login challenge", async () => {
     const response = await request(app).get("/login").expect(500)
 

@@ -13,14 +13,24 @@ import verus from "./routes/verus"
 type RateLimitOptions = {
   windowMs: number
   max: number
+  maxClients?: number
 }
 
 export function createRateLimit(options: RateLimitOptions) {
   const entries = new Map<string, { count: number; resetAt: number }>()
+  const maxClients = options.maxClients ?? Math.max(options.max * 10, 1000)
 
   return (req: Request, res: Response, next: NextFunction) => {
     const now = Date.now()
     const key = req.ip || req.socket.remoteAddress || "unknown"
+    pruneExpiredRateLimitEntries(entries, now)
+
+    if (!entries.has(key) && entries.size >= maxClients) {
+      res.set("Retry-After", String(Math.ceil(options.windowMs / 1000)))
+      res.status(429).json({ error: "Too many clients" })
+      return
+    }
+
     const current = entries.get(key)
     const entry = current && current.resetAt > now
       ? current
@@ -36,6 +46,17 @@ export function createRateLimit(options: RateLimitOptions) {
     }
 
     next()
+  }
+}
+
+function pruneExpiredRateLimitEntries(
+  entries: Map<string, { count: number; resetAt: number }>,
+  now: number,
+) {
+  for (const [key, entry] of entries.entries()) {
+    if (entry.resetAt <= now) {
+      entries.delete(key)
+    }
   }
 }
 
