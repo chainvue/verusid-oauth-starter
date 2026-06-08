@@ -86,7 +86,7 @@ Docker demo; copied apps should provide an `accessTokenVerifier` when access
 tokens are verified by a private service, gateway, or production OAuth
 deployment that must not expose Hydra admin publicly.
 
-See [docs/copy-into-express.md](docs/copy-into-express.md), [docs/integration-guide.md](docs/integration-guide.md), and [docs/env-reference.md](docs/env-reference.md).
+See [docs/copy-into-express.md](docs/copy-into-express.md), [docs/integration-guide.md](docs/integration-guide.md), [docs/env-reference.md](docs/env-reference.md), and [docs/production-runbook.md](docs/production-runbook.md).
 
 ## Local Stack
 

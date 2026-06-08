@@ -38,7 +38,7 @@ async function handleCallback(
 
   if (redirectOnComplete && session.redirectTo) {
     res.redirect(session.redirectTo)
-    removePendingLogin(session.id)
+    await removePendingLogin(session.id)
     return
   }
 
@@ -48,7 +48,7 @@ async function handleCallback(
       verusId: session.verusId,
       verusIdName: session.verusIdName,
     })
-    removePendingLogin(session.id)
+    await removePendingLogin(session.id)
     return
   }
 
@@ -56,7 +56,7 @@ async function handleCallback(
     status: session.status,
     error: session.error,
   })
-  removePendingLogin(session.id)
+  await removePendingLogin(session.id)
 }
 
 const parseTextCallback = bodyParser.text({
@@ -71,8 +71,15 @@ router.get("/callback", (req, res, next) => {
   handleCallback(req.query, res, true).catch(next)
 })
 
-router.get("/status/:id", (req, res) => {
-  const session = getPendingLogin(req.params.id)
+router.get("/status/:id", async (req, res, next) => {
+  let session
+
+  try {
+    session = await getPendingLogin(req.params.id)
+  } catch (error) {
+    next(error)
+    return
+  }
 
   res.set("Cache-Control", "no-store")
 
@@ -92,7 +99,7 @@ router.get("/status/:id", (req, res) => {
     verusIdName: session.verusIdName,
   })
   if (session.status !== "pending") {
-    removePendingLogin(session.id)
+    await removePendingLogin(session.id)
   }
 })
 

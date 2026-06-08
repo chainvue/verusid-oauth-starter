@@ -34,6 +34,9 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.22.2
+      ioredis:
+        specifier: ^5.11.1
+        version: 5.11.1
       morgan:
         specifier: ^1.10.0
         version: 1.11.0
@@ -135,6 +138,9 @@ packages:
 
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
+
+  '@ioredis/commands@1.10.0':
+    resolution: {integrity: sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -510,8 +516,8 @@ packages:
   blake2b-wasm@2.4.0:
     resolution: {integrity: sha512-S1kwmW2ZhZFFFOghcx73+ZajEfKBqhP82JMssxtLVMxlaPea1p9uoLiUZ5WYyHn0KddwbLc+0vh4wR0KBNoT5w==}
 
-  blake2b@https://codeload.github.com/VerusCoin/blake2b/tar.gz/578dc12b7b68a3ce76d1e1add1402b28a5890a6b:
-    resolution: {tarball: https://codeload.github.com/VerusCoin/blake2b/tar.gz/578dc12b7b68a3ce76d1e1add1402b28a5890a6b}
+  blake2b@git+https://git@github.com:VerusCoin/blake2b.git#578dc12b7b68a3ce76d1e1add1402b28a5890a6b:
+    resolution: {commit: 578dc12b7b68a3ce76d1e1add1402b28a5890a6b, repo: git@github.com:VerusCoin/blake2b.git, type: git}
     version: 2.1.4
 
   bn.js@5.2.3:
@@ -583,6 +589,10 @@ packages:
 
   cliui@6.0.0:
     resolution: {integrity: sha512-t6wbgtoCXvAzst7QgXxJYqPt0usEfbgQdftEPbLL/cvv6HPE5VgvqCuAIDR0NgU52ds6rFwqrgakNLrHEjCbrQ==}
+
+  cluster-key-slot@1.1.1:
+    resolution: {integrity: sha512-rwHwUfXL40Chm1r08yrhU3qpUvdVlgkKNeyeGPOxnW8/SyVDvgRaed/Uz54AqWNaTCAThlj6QAs3TZcKI0xDEw==}
+    engines: {node: '>=0.10.0'}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -699,6 +709,10 @@ packages:
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
+
+  denque@2.1.0:
+    resolution: {integrity: sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw==}
+    engines: {node: '>=0.10'}
 
   depd@1.1.2:
     resolution: {integrity: sha512-7emPTl6Dpo6JRXOXjLRxck+FlLRX5847cLKEn00PLAgc3g2hTZZgr+e4c2v6QpSmLeFP3n5yUo7ft6avBK/5jQ==}
@@ -915,6 +929,10 @@ packages:
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
+
+  ioredis@5.11.1:
+    resolution: {integrity: sha512-ehuGcf94bQXhfagULNXrJdfnWO38v070jxSx/qE87Kjzmu2fU7ro5EFAb+OPituLqgfyuQaym5DlrNydW2sJ9A==}
+    engines: {node: '>=12.22.0'}
 
   ipaddr.js@1.9.1:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
@@ -1296,6 +1314,14 @@ packages:
     resolution: {integrity: sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA==}
     engines: {node: '>=8.10.0'}
 
+  redis-errors@1.2.0:
+    resolution: {integrity: sha512-1qny3OExCf0UvUV/5wpYKf2YwPcOqXzkwKKSmKHiE6ZMQs5heeE/c8eXK+PNllPvmjgAbfnsbpkGZWy8cBpn9w==}
+    engines: {node: '>=4'}
+
+  redis-parser@3.0.0:
+    resolution: {integrity: sha512-DJnGAeenTdpMEH6uAJRK/uiyEIH9WVsUmoLwzudwGJUwZPp80PDBWPHXSAGNPwNvIXAbe7MSUB1zQFugFml66A==}
+    engines: {node: '>=4'}
+
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
     engines: {node: '>=0.10.0'}
@@ -1398,6 +1424,9 @@ packages:
 
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
+
+  standard-as-callback@2.1.0:
+    resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
 
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
@@ -1563,6 +1592,10 @@ packages:
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
+
+  verus-typescript-primitives@git+https://git@github.com:VerusCoin/verus-typescript-primitives.git#72d477b836538d6c734162b2c069538122263f3b:
+    resolution: {commit: 72d477b836538d6c734162b2c069538122263f3b, repo: git@github.com:VerusCoin/verus-typescript-primitives.git, type: git}
+    version: 1.0.0
 
   verus-typescript-primitives@https://codeload.github.com/VerusCoin/verus-typescript-primitives/tar.gz/72d477b836538d6c734162b2c069538122263f3b:
     resolution: {tarball: https://codeload.github.com/VerusCoin/verus-typescript-primitives/tar.gz/72d477b836538d6c734162b2c069538122263f3b}
@@ -1756,7 +1789,7 @@ snapshots:
       safe-buffer: 5.0.1
       typeforce: 1.11.3
       varuint-bitcoin: 1.0.4
-      verus-typescript-primitives: https://codeload.github.com/VerusCoin/verus-typescript-primitives/tar.gz/72d477b836538d6c734162b2c069538122263f3b
+      verus-typescript-primitives: git+https://git@github.com:VerusCoin/verus-typescript-primitives.git#72d477b836538d6c734162b2c069538122263f3b
       wif: 2.0.1
     transitivePeerDependencies:
       - react-native-b4a
@@ -1781,6 +1814,8 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
+
+  '@ioredis/commands@1.10.0': {}
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
@@ -2124,7 +2159,7 @@ snapshots:
     transitivePeerDependencies:
       - react-native-b4a
 
-  blake2b@https://codeload.github.com/VerusCoin/blake2b/tar.gz/578dc12b7b68a3ce76d1e1add1402b28a5890a6b:
+  blake2b@git+https://git@github.com:VerusCoin/blake2b.git#578dc12b7b68a3ce76d1e1add1402b28a5890a6b:
     dependencies:
       blake2b-wasm: 2.4.0
       nanoassert: 2.0.0
@@ -2236,6 +2271,8 @@ snapshots:
       strip-ansi: 6.0.1
       wrap-ansi: 6.2.0
 
+  cluster-key-slot@1.1.1: {}
+
   color-convert@2.0.1:
     dependencies:
       color-name: 1.1.4
@@ -2344,6 +2381,8 @@ snapshots:
       gopd: 1.2.0
 
   delayed-stream@1.0.0: {}
+
+  denque@2.1.0: {}
 
   depd@1.1.2: {}
 
@@ -2594,6 +2633,18 @@ snapshots:
       wrappy: 1.0.2
 
   inherits@2.0.4: {}
+
+  ioredis@5.11.1:
+    dependencies:
+      '@ioredis/commands': 1.10.0
+      cluster-key-slot: 1.1.1
+      debug: 4.4.3
+      denque: 2.1.0
+      redis-errors: 1.2.0
+      redis-parser: 3.0.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
 
   ipaddr.js@1.9.1: {}
 
@@ -2938,6 +2989,12 @@ snapshots:
     dependencies:
       picomatch: 2.3.2
 
+  redis-errors@1.2.0: {}
+
+  redis-parser@3.0.0:
+    dependencies:
+      redis-errors: 1.2.0
+
   require-directory@2.1.1: {}
 
   require-main-filename@2.0.0: {}
@@ -3079,6 +3136,8 @@ snapshots:
   source-map@0.6.1: {}
 
   stackback@0.0.2: {}
+
+  standard-as-callback@2.1.0: {}
 
   statuses@1.5.0: {}
 
@@ -3244,11 +3303,22 @@ snapshots:
 
   vary@1.1.2: {}
 
+  verus-typescript-primitives@git+https://git@github.com:VerusCoin/verus-typescript-primitives.git#72d477b836538d6c734162b2c069538122263f3b:
+    dependencies:
+      base64url: 3.0.1
+      bech32: 2.0.0
+      blake2b: git+https://git@github.com:VerusCoin/blake2b.git#578dc12b7b68a3ce76d1e1add1402b28a5890a6b
+      bn.js: 5.2.3
+      bs58check: 2.0.0
+      create-hash: 1.2.0
+    transitivePeerDependencies:
+      - react-native-b4a
+
   verus-typescript-primitives@https://codeload.github.com/VerusCoin/verus-typescript-primitives/tar.gz/72d477b836538d6c734162b2c069538122263f3b:
     dependencies:
       base64url: 3.0.1
       bech32: 2.0.0
-      blake2b: https://codeload.github.com/VerusCoin/blake2b/tar.gz/578dc12b7b68a3ce76d1e1add1402b28a5890a6b
+      blake2b: git+https://git@github.com:VerusCoin/blake2b.git#578dc12b7b68a3ce76d1e1add1402b28a5890a6b
       bn.js: 5.2.3
       bs58check: 2.0.0
       create-hash: 1.2.0
@@ -3258,8 +3328,8 @@ snapshots:
   verusd-rpc-ts-client@https://codeload.github.com/VerusCoin/verusd-rpc-ts-client/tar.gz/fee3d2b217c2b3b9f63da4527bb852e1cbc5edf2:
     dependencies:
       axios: 1.17.0
-      blake2b: https://codeload.github.com/VerusCoin/blake2b/tar.gz/578dc12b7b68a3ce76d1e1add1402b28a5890a6b
-      verus-typescript-primitives: https://codeload.github.com/VerusCoin/verus-typescript-primitives/tar.gz/72d477b836538d6c734162b2c069538122263f3b
+      blake2b: git+https://git@github.com:VerusCoin/blake2b.git#578dc12b7b68a3ce76d1e1add1402b28a5890a6b
+      verus-typescript-primitives: git+https://git@github.com:VerusCoin/verus-typescript-primitives.git#72d477b836538d6c734162b2c069538122263f3b
     transitivePeerDependencies:
       - debug
       - react-native-b4a
@@ -3271,7 +3341,7 @@ snapshots:
       axios: 1.17.0
       bignumber.js: 9.1.0
       bn.js: 5.2.3
-      verus-typescript-primitives: https://codeload.github.com/VerusCoin/verus-typescript-primitives/tar.gz/72d477b836538d6c734162b2c069538122263f3b
+      verus-typescript-primitives: git+https://git@github.com:VerusCoin/verus-typescript-primitives.git#72d477b836538d6c734162b2c069538122263f3b
       verusd-rpc-ts-client: https://codeload.github.com/VerusCoin/verusd-rpc-ts-client/tar.gz/fee3d2b217c2b3b9f63da4527bb852e1cbc5edf2
     transitivePeerDependencies:
       - debug

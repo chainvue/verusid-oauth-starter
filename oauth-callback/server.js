@@ -705,13 +705,6 @@ function audienceIncludes(audience, expectedAudience) {
     : audience === expectedAudience
 }
 
-function decodeJwtPayload(token) {
-  const decoded = decodeJwt(token)
-  return decoded.ok
-    ? { ok: true, claims: decoded.claims, error: null }
-    : { ok: false, claims: null, error: decoded.error }
-}
-
 function decodeJwt(token) {
   if (!token) {
     return { ok: false, claims: null, header: null, error: "No ID token returned" }
