@@ -6,6 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "check": "npm test",
     "doctor:local": "node scripts/doctor-local.cjs",
     "test": "node scripts/test-local.cjs"
   },
