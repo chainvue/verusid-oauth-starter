@@ -14,12 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure git for HTTPS and GitHub token
-        run: |
-          git config --global url."https://${{ github.token }}@github.com/".insteadOf "https://github.com/"
-          git config --global url."https://${{ github.token }}@github.com/".insteadOf "git@github.com:"
-          git config --global url."https://${{ github.token }}@github.com/".insteadOf "ssh://git@github.com/"
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -28,6 +22,12 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             examples/verusid-express-login/package-lock.json
+
+      - name: Configure git for HTTPS and GitHub token
+        run: |
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "git@github.com:"
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "ssh://git@github.com/"
 
       - name: Install root dependencies
         run: npm ci
