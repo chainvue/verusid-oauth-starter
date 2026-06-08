@@ -23,6 +23,8 @@ export const verusRpcTimeoutMs = Number(process.env.VERUS_RPC_TIMEOUT_MS || 1000
 export const verusChain = process.env.VERUS_CHAIN || "VRSCTEST"
 export const pendingLoginStore = process.env.PENDING_LOGIN_STORE || "memory"
 export const maxPendingLogins = Number(process.env.MAX_PENDING_LOGINS || 1000)
+export const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000)
+export const rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 120)
 
 export const verusId = new VerusIdInterface(
   verusChain,
@@ -48,6 +50,8 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
   const configuredRpcPassword = env.VERUS_RPC_PASSWORD || ""
   const configuredPendingStore = env.PENDING_LOGIN_STORE || "memory"
   const configuredMaxPendingLogins = Number(env.MAX_PENDING_LOGINS || 1000)
+  const configuredRateLimitWindowMs = Number(env.RATE_LIMIT_WINDOW_MS || 60000)
+  const configuredRateLimitMax = Number(env.RATE_LIMIT_MAX || 120)
 
   const parsedBaseUrl = parseUrl(configuredBaseUrl)
   const parsedHydraAdminUrl = parseUrl(configuredHydraAdminUrl)
@@ -88,6 +92,14 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
 
   if (!Number.isInteger(configuredMaxPendingLogins) || !Number.isFinite(configuredMaxPendingLogins) || configuredMaxPendingLogins <= 0) {
     errors.push("Production MAX_PENDING_LOGINS must be a finite positive integer.")
+  }
+
+  if (!Number.isInteger(configuredRateLimitWindowMs) || !Number.isFinite(configuredRateLimitWindowMs) || configuredRateLimitWindowMs <= 0) {
+    errors.push("Production RATE_LIMIT_WINDOW_MS must be a finite positive integer.")
+  }
+
+  if (!Number.isInteger(configuredRateLimitMax) || !Number.isFinite(configuredRateLimitMax) || configuredRateLimitMax <= 0) {
+    errors.push("Production RATE_LIMIT_MAX must be a finite positive integer.")
   }
 
   return errors

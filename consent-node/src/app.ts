@@ -4,10 +4,40 @@ import express, { NextFunction, Request, Response } from "express"
 import logger from "morgan"
 import path from "path"
 
+import { rateLimitMax, rateLimitWindowMs } from "./config"
 import consent from "./routes/consent"
 import login from "./routes/login"
 import logout from "./routes/logout"
 import verus from "./routes/verus"
+
+type RateLimitOptions = {
+  windowMs: number
+  max: number
+}
+
+export function createRateLimit(options: RateLimitOptions) {
+  const entries = new Map<string, { count: number; resetAt: number }>()
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const now = Date.now()
+    const key = req.ip || req.socket.remoteAddress || "unknown"
+    const current = entries.get(key)
+    const entry = current && current.resetAt > now
+      ? current
+      : { count: 0, resetAt: now + options.windowMs }
+
+    entry.count += 1
+    entries.set(key, entry)
+
+    if (entry.count > options.max) {
+      res.set("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)))
+      res.status(429).json({ error: "Too many requests" })
+      return
+    }
+
+    next()
+  }
+}
 
 export function createApp() {
   const app = express()
@@ -28,10 +58,15 @@ export function createApp() {
     res.render("index")
   })
 
-  app.use("/login", login)
-  app.use("/consent", consent)
+  const authRateLimit = createRateLimit({
+    windowMs: rateLimitWindowMs,
+    max: rateLimitMax,
+  })
+
+  app.use("/login", authRateLimit, login)
+  app.use("/consent", authRateLimit, consent)
   app.use("/logout", logout)
-  app.use("/verus", verus)
+  app.use("/verus", authRateLimit, verus)
 
   app.use((_req, _res, next) => {
     next(new Error("Not Found"))

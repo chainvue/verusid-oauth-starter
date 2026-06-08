@@ -15,6 +15,8 @@ describe("consent-node production config", () => {
       VERUS_RPC_TIMEOUT_MS: "0",
       VERUS_RPC_USER: "user",
       MAX_PENDING_LOGINS: "0",
+      RATE_LIMIT_WINDOW_MS: "0",
+      RATE_LIMIT_MAX: "0",
     })
 
     expect(errors).toEqual(expect.arrayContaining([
@@ -26,6 +28,8 @@ describe("consent-node production config", () => {
       expect.stringContaining("VERUS_RPC_USER"),
       expect.stringContaining("PENDING_LOGIN_STORE=memory"),
       expect.stringContaining("MAX_PENDING_LOGINS"),
+      expect.stringContaining("RATE_LIMIT_WINDOW_MS"),
+      expect.stringContaining("RATE_LIMIT_MAX"),
     ]))
   })
 
@@ -41,6 +45,8 @@ describe("consent-node production config", () => {
       PENDING_LOGIN_STORE: "memory",
       ALLOW_MEMORY_PENDING_LOGIN_STORE: "1",
       MAX_PENDING_LOGINS: "1000",
+      RATE_LIMIT_WINDOW_MS: "60000",
+      RATE_LIMIT_MAX: "120",
     })
 
     expect(errors).toEqual([])
