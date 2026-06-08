@@ -30,6 +30,11 @@ jobs:
         run: npm ci
         working-directory: examples/verusid-express-login
 
+      - name: Use HTTPS for GitHub package dependencies
+        run: |
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
       - name: Install consent-node dependencies
         run: |
           corepack enable
