@@ -23,8 +23,8 @@
     "pug": "^3.0.3",
     "qrcode": "^1.5.4",
     "url-join": "^4.0.1",
-    "verus-typescript-primitives": "github:VerusCoin/verus-typescript-primitives#72d477b836538d6c734162b2c069538122263f3b",
-    "verusid-ts-client": "github:VerusCoin/verusid-ts-client#2eec86c7f06d13c8b04ddc1473fce32c450d2a31"
+    "verus-typescript-primitives": "VerusCoin/verus-typescript-primitives#72d477b836538d6c734162b2c069538122263f3b",
+    "verusid-ts-client": "VerusCoin/verusid-ts-client#2eec86c7f06d13c8b04ddc1473fce32c450d2a31"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
