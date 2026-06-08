@@ -22,6 +22,7 @@ export const verusLoginTtlMs = Number(process.env.VERUS_LOGIN_TTL_MS || 300000)
 export const verusRpcTimeoutMs = Number(process.env.VERUS_RPC_TIMEOUT_MS || 10000)
 export const verusChain = process.env.VERUS_CHAIN || "VRSCTEST"
 export const pendingLoginStore = process.env.PENDING_LOGIN_STORE || "memory"
+export const pendingLoginRedisUrl = process.env.PENDING_LOGIN_REDIS_URL || process.env.REDIS_URL || ""
 export const maxPendingLogins = Number(process.env.MAX_PENDING_LOGINS || 1000)
 export const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000)
 export const rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 120)
@@ -49,6 +50,7 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
   const configuredRpcUser = env.VERUS_RPC_USER || ""
   const configuredRpcPassword = env.VERUS_RPC_PASSWORD || ""
   const configuredPendingStore = env.PENDING_LOGIN_STORE || "memory"
+  const configuredPendingRedisUrl = env.PENDING_LOGIN_REDIS_URL || env.REDIS_URL || ""
   const configuredMaxPendingLogins = Number(env.MAX_PENDING_LOGINS || 1000)
   const configuredRateLimitWindowMs = Number(env.RATE_LIMIT_WINDOW_MS || 60000)
   const configuredRateLimitMax = Number(env.RATE_LIMIT_MAX || 120)
@@ -84,9 +86,11 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
     errors.push("Production VERUS_RPC_USER and VERUS_RPC_PASSWORD must be configured together.")
   }
 
-  if (configuredPendingStore !== "memory") {
-    errors.push("Production PENDING_LOGIN_STORE must be \"memory\" until a durable store is implemented.")
-  } else if (env.ALLOW_MEMORY_PENDING_LOGIN_STORE !== "1") {
+  if (!["memory", "redis"].includes(configuredPendingStore)) {
+    errors.push("Production PENDING_LOGIN_STORE must be \"memory\" or \"redis\".")
+  } else if (configuredPendingStore === "redis" && !parseUrl(configuredPendingRedisUrl)) {
+    errors.push("Production PENDING_LOGIN_REDIS_URL or REDIS_URL must be a valid URL when PENDING_LOGIN_STORE=redis.")
+  } else if (configuredPendingStore === "memory" && env.ALLOW_MEMORY_PENDING_LOGIN_STORE !== "1") {
     errors.push("Production PENDING_LOGIN_STORE=memory is process-local; set ALLOW_MEMORY_PENDING_LOGIN_STORE=1 only for single-instance deployments.")
   }
 

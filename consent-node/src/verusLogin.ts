@@ -1,5 +1,6 @@
 import crypto from "crypto"
 
+import Redis from "ioredis"
 import QRCode from "qrcode"
 import {
   IDENTITY_VIEW,
@@ -20,6 +21,8 @@ import {
   baseUrl,
   hydraAdmin,
   maxPendingLogins,
+  pendingLoginRedisUrl,
+  pendingLoginStore,
   verusChain,
   verusId,
   verusLoginTtlMs,
@@ -36,8 +39,10 @@ export type PendingVerusLogin = {
   loginChallenge: string
   verusChallengeId: string
   createdAt: number
-  qrRequest: LoginConsentRequest
-  deeplinkRequest: LoginConsentRequest
+  qrRequest?: LoginConsentRequest
+  deeplinkRequest?: LoginConsentRequest
+  qrRequestValue: string
+  deeplinkRequestValue: string
   deeplink: string
   qrDataUrl: string
   status: "pending" | "complete" | "expired" | "rejected" | "error"
@@ -47,17 +52,26 @@ export type PendingVerusLogin = {
   verusIdName?: string
 }
 
-class MemoryPendingLoginStore {
+interface PendingLoginStore {
+  hasCapacity(): Promise<boolean>
+  set(session: PendingVerusLogin): Promise<void>
+  getById(id: string): Promise<PendingVerusLogin | undefined>
+  getPendingByChallengeId(challengeId: string | undefined): Promise<PendingVerusLogin | undefined>
+  delete(id: string): Promise<void>
+  cleanupExpired(ttlMs: number): Promise<void>
+}
+
+class MemoryPendingLoginStore implements PendingLoginStore {
   private readonly byId = new Map<string, PendingVerusLogin>()
   private readonly byChallengeId = new Map<string, string>()
 
   constructor(private readonly maxEntries: number) {}
 
-  hasCapacity() {
+  async hasCapacity() {
     return this.byId.size < this.maxEntries
   }
 
-  set(session: PendingVerusLogin) {
+  async set(session: PendingVerusLogin) {
     if (this.byId.size >= this.maxEntries && !this.byId.has(session.id)) {
       throw new Error(`Too many pending Verus login requests. Try again after an existing request expires.`)
     }
@@ -65,11 +79,11 @@ class MemoryPendingLoginStore {
     this.byChallengeId.set(session.verusChallengeId, session.id)
   }
 
-  getById(id: string) {
+  async getById(id: string) {
     return this.byId.get(id)
   }
 
-  getPendingByChallengeId(challengeId: string | undefined) {
+  async getPendingByChallengeId(challengeId: string | undefined) {
     if (!challengeId) {
       return undefined
     }
@@ -78,7 +92,7 @@ class MemoryPendingLoginStore {
     return session?.status === "pending" ? session : undefined
   }
 
-  delete(id: string) {
+  async delete(id: string) {
     const session = this.byId.get(id)
     if (session) {
       this.byChallengeId.delete(session.verusChallengeId)
@@ -86,7 +100,7 @@ class MemoryPendingLoginStore {
     this.byId.delete(id)
   }
 
-  cleanupExpired(ttlMs: number) {
+  async cleanupExpired(ttlMs: number) {
     const now = Date.now()
 
     for (const [id, session] of this.byId.entries()) {
@@ -100,7 +114,112 @@ class MemoryPendingLoginStore {
   }
 }
 
-const pendingStore = new MemoryPendingLoginStore(maxPendingLogins)
+class RedisPendingLoginStore implements PendingLoginStore {
+  private readonly client: Redis
+  private readonly prefix = "verusid-oauth:pending-login"
+
+  constructor(redisUrl: string, private readonly maxEntries: number) {
+    this.client = new Redis(redisUrl, {
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+    })
+  }
+
+  async hasCapacity() {
+    await this.cleanupExpired(verusLoginTtlMs)
+    return await this.client.scard(this.activeKey()) < this.maxEntries
+  }
+
+  async set(session: PendingVerusLogin) {
+    const existing = await this.getById(session.id)
+    if (!existing && !await this.hasCapacity()) {
+      throw new Error(`Too many pending Verus login requests. Try again after an existing request expires.`)
+    }
+
+    const ttlSeconds = Math.ceil(verusLoginTtlMs / 1000)
+    await this.client
+      .multi()
+      .set(this.sessionKey(session.id), JSON.stringify(serializePendingLogin(session)), "EX", ttlSeconds)
+      .set(this.challengeKey(session.verusChallengeId), session.id, "EX", ttlSeconds)
+      .sadd(this.activeKey(), session.id)
+      .exec()
+  }
+
+  async getById(id: string) {
+    const value = await this.client.get(this.sessionKey(id))
+    return value ? deserializePendingLogin(value) : undefined
+  }
+
+  async getPendingByChallengeId(challengeId: string | undefined) {
+    if (!challengeId) {
+      return undefined
+    }
+    const id = await this.client.get(this.challengeKey(challengeId))
+    const session = id ? await this.getById(id) : undefined
+    return session?.status === "pending" ? session : undefined
+  }
+
+  async delete(id: string) {
+    const session = await this.getById(id)
+    const multi = this.client.multi()
+      .del(this.sessionKey(id))
+      .srem(this.activeKey(), id)
+    if (session) {
+      multi.del(this.challengeKey(session.verusChallengeId))
+    }
+    await multi.exec()
+  }
+
+  async cleanupExpired(_ttlMs: number) {
+    const ids = await this.client.smembers(this.activeKey())
+    if (ids.length === 0) {
+      return
+    }
+
+    const exists = await this.client.mget(ids.map((id) => this.sessionKey(id)))
+    const staleIds = ids.filter((_id, index) => !exists[index])
+    if (staleIds.length > 0) {
+      await this.client.srem(this.activeKey(), ...staleIds)
+    }
+  }
+
+  private activeKey() {
+    return `${this.prefix}:active`
+  }
+
+  private sessionKey(id: string) {
+    return `${this.prefix}:session:${id}`
+  }
+
+  private challengeKey(challengeId: string) {
+    return `${this.prefix}:challenge:${challengeId}`
+  }
+}
+
+function createPendingLoginStore(): PendingLoginStore {
+  if (pendingLoginStore === "redis") {
+    if (!pendingLoginRedisUrl) {
+      throw new Error("PENDING_LOGIN_REDIS_URL or REDIS_URL is required when PENDING_LOGIN_STORE=redis.")
+    }
+    return new RedisPendingLoginStore(pendingLoginRedisUrl, maxPendingLogins)
+  }
+  return new MemoryPendingLoginStore(maxPendingLogins)
+}
+
+function serializePendingLogin(session: PendingVerusLogin) {
+  const {
+    qrRequest: _qrRequest,
+    deeplinkRequest: _deeplinkRequest,
+    ...serializable
+  } = session
+  return serializable
+}
+
+function deserializePendingLogin(value: string): PendingVerusLogin {
+  return JSON.parse(value) as PendingVerusLogin
+}
+
+const pendingStore = createPendingLoginStore()
 const I_ADDR_VERSION = 102
 
 function randomIAddressLikeId() {
@@ -108,7 +227,7 @@ function randomIAddressLikeId() {
 }
 
 function cleanupExpired() {
-  pendingStore.cleanupExpired(verusLoginTtlMs)
+  return pendingStore.cleanupExpired(verusLoginTtlMs)
 }
 
 function decodeBase64Url(value: string) {
@@ -207,18 +326,18 @@ async function createSignedLoginConsentRequest(
   return request
 }
 
-export function getPendingLogin(id: string) {
-  cleanupExpired()
+export async function getPendingLogin(id: string) {
+  await cleanupExpired()
   return pendingStore.getById(id)
 }
 
 export function removePendingLogin(id: string) {
-  pendingStore.delete(id)
+  return pendingStore.delete(id)
 }
 
 export async function createPendingLogin(loginChallenge: string) {
-  cleanupExpired()
-  if (!pendingStore.hasCapacity()) {
+  await cleanupExpired()
+  if (!await pendingStore.hasCapacity()) {
     throw new Error(`Too many pending Verus login requests. Try again after an existing request expires.`)
   }
 
@@ -259,6 +378,8 @@ export async function createPendingLogin(loginChallenge: string) {
 
   const qrDeeplink = qrRequest.toWalletDeeplinkUri()
   const deeplink = deeplinkRequest.toWalletDeeplinkUri()
+  const qrRequestValue = qrRequest.toString()
+  const deeplinkRequestValue = deeplinkRequest.toString()
   const qrDataUrl = await QRCode.toDataURL(qrDeeplink, {
     errorCorrectionLevel: "M",
     margin: 1,
@@ -271,12 +392,14 @@ export async function createPendingLogin(loginChallenge: string) {
     createdAt: Date.now(),
     qrRequest,
     deeplinkRequest,
+    qrRequestValue,
+    deeplinkRequestValue,
     deeplink,
     qrDataUrl,
     status: "pending",
   }
 
-  pendingStore.set(session)
+  await pendingStore.set(session)
   return session
 }
 
@@ -310,9 +433,9 @@ export function parseLoginConsentResponse(
 }
 
 export async function completePendingLogin(response: LoginConsentResponse) {
-  cleanupExpired()
+  await cleanupExpired()
 
-  const session = pendingStore.getPendingByChallengeId(response.decision?.decision_id)
+  const session = await pendingStore.getPendingByChallengeId(response.decision?.decision_id)
 
   if (!session) {
     throw new Error("No pending login matches this Verus response.")
@@ -322,13 +445,14 @@ export async function completePendingLogin(response: LoginConsentResponse) {
     if (response.decision?.skipped) {
       session.status = "rejected"
       session.error = "The wallet rejected the Verus login request."
+      await pendingStore.set(session)
       return session
     }
 
     const responseRequest = response.decision.request.toString()
     const acceptedRequest = [
-      session.qrRequest.toString(),
-      session.deeplinkRequest.toString(),
+      session.qrRequestValue,
+      session.deeplinkRequestValue,
     ].includes(responseRequest)
 
     if (!acceptedRequest) {
@@ -375,10 +499,12 @@ export async function completePendingLogin(response: LoginConsentResponse) {
     session.redirectTo = String(redirect_to)
     session.verusId = userIAddress
     session.verusIdName = friendlyName
+    await pendingStore.set(session)
     return session
   } catch (error) {
     session.status = "error"
     session.error = error instanceof Error ? error.message : String(error)
+    await pendingStore.set(session)
     return session
   }
 }

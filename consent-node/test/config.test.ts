@@ -52,6 +52,41 @@ describe("consent-node production config", () => {
     expect(errors).toEqual([])
   })
 
+  it("accepts a Redis pending login store when a Redis URL is configured", () => {
+    const errors = getProductionConfigErrors({
+      BASE_URL: "https://consent.example.com",
+      HYDRA_ADMIN_URL: "http://hydra:4445",
+      VERUS_SERVICE_ID: "service@",
+      VERUS_LOGIN_TTL_MS: "300000",
+      VERUS_RPC_TIMEOUT_MS: "10000",
+      PENDING_LOGIN_STORE: "redis",
+      PENDING_LOGIN_REDIS_URL: "redis://redis:6379/0",
+      MAX_PENDING_LOGINS: "1000",
+      RATE_LIMIT_WINDOW_MS: "60000",
+      RATE_LIMIT_MAX: "120",
+    })
+
+    expect(errors).toEqual([])
+  })
+
+  it("rejects Redis pending login storage without a Redis URL", () => {
+    const errors = getProductionConfigErrors({
+      BASE_URL: "https://consent.example.com",
+      HYDRA_ADMIN_URL: "http://hydra:4445",
+      VERUS_SERVICE_ID: "service@",
+      VERUS_LOGIN_TTL_MS: "300000",
+      VERUS_RPC_TIMEOUT_MS: "10000",
+      PENDING_LOGIN_STORE: "redis",
+      MAX_PENDING_LOGINS: "1000",
+      RATE_LIMIT_WINDOW_MS: "60000",
+      RATE_LIMIT_MAX: "120",
+    })
+
+    expect(errors).toEqual(expect.arrayContaining([
+      expect.stringContaining("PENDING_LOGIN_REDIS_URL"),
+    ]))
+  })
+
   it("throws a startup error with all production config failures", () => {
     expect(() => assertConsentNodeProductionConfig({
       BASE_URL: "not a url",

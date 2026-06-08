@@ -22,6 +22,8 @@ vi.mock("../src/config", () => ({
   verusLoginTtlMs: 300000,
   verusRpcTimeoutMs: 10000,
   verusServiceId: "fum@",
+  pendingLoginStore: "memory",
+  pendingLoginRedisUrl: "",
   maxPendingLogins: 1,
 }))
 
@@ -136,7 +138,7 @@ describe("completePendingLogin", () => {
       decision: {
         decision_id: pending.verusChallengeId,
         request: {
-          toString: () => pending.qrRequest.toString(),
+          toString: () => pending.qrRequestValue,
         },
       },
     }
@@ -177,11 +179,11 @@ describe("completePendingLogin", () => {
 
     const pending = await createPendingLogin("login-123")
 
-    expect(getPendingLogin(pending.id)?.status).toBe("pending")
+    expect((await getPendingLogin(pending.id))?.status).toBe("pending")
 
     vi.setSystemTime(new Date("2026-06-07T10:35:46Z"))
 
-    expect(getPendingLogin(pending.id)).toBeUndefined()
+    expect(await getPendingLogin(pending.id)).toBeUndefined()
   })
 
   it("rejects new pending login sessions when the memory store is full", async () => {
@@ -214,14 +216,14 @@ describe("completePendingLogin", () => {
     })
 
     const pending = await createPendingLogin("login-123")
-    removePendingLogin(pending.id)
+    await removePendingLogin(pending.id)
 
     await expect(completePendingLogin({
       signing_id: "iUserAddress",
       decision: {
         decision_id: pending.verusChallengeId,
         request: {
-          toString: () => pending.qrRequest.toString(),
+          toString: () => pending.qrRequestValue,
         },
       },
     })).rejects.toThrow("No pending login matches this Verus response.")
