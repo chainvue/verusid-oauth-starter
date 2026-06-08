@@ -14,6 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Use HTTPS for GitHub package dependencies
+        run: |
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,11 +34,6 @@ jobs:
       - name: Install example dependencies
         run: npm ci
         working-directory: examples/verusid-express-login
-
-      - name: Use HTTPS for GitHub package dependencies
-        run: |
-          git config --global url."https://github.com/".insteadOf git@github.com:
-          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
       - name: Install consent-node dependencies
         run: |
