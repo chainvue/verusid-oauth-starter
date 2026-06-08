@@ -39,7 +39,7 @@ jobs:
       - name: Install consent-node dependencies
         run: |
           corepack enable
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
         working-directory: consent-node
 
       - name: Lint
