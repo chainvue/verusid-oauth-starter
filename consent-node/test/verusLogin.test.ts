@@ -194,9 +194,13 @@ describe("completePendingLogin", () => {
 
     await createPendingLogin("login-123")
 
+    vi.clearAllMocks()
     await expect(createPendingLogin("login-456")).rejects.toThrow(
       "Too many pending Verus login requests",
     )
+    expect(verusId.interface.getIdentity).not.toHaveBeenCalled()
+    expect(verusId.getChainId).not.toHaveBeenCalled()
+    expect(verusId.interface.signData).not.toHaveBeenCalled()
   })
 
   it("removes pending login sessions from challenge lookup", async () => {

@@ -53,6 +53,10 @@ class MemoryPendingLoginStore {
 
   constructor(private readonly maxEntries: number) {}
 
+  hasCapacity() {
+    return this.byId.size < this.maxEntries
+  }
+
   set(session: PendingVerusLogin) {
     if (this.byId.size >= this.maxEntries && !this.byId.has(session.id)) {
       throw new Error(`Too many pending Verus login requests. Try again after an existing request expires.`)
@@ -214,6 +218,9 @@ export function removePendingLogin(id: string) {
 
 export async function createPendingLogin(loginChallenge: string) {
   cleanupExpired()
+  if (!pendingStore.hasCapacity()) {
+    throw new Error(`Too many pending Verus login requests. Try again after an existing request expires.`)
+  }
 
   const serviceIdentity = await withRpcTimeout(
     verusId.interface.getIdentity(verusServiceId),
