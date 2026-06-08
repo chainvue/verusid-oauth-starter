@@ -41,8 +41,6 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
         working-directory: consent-node
-        env:
-          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=no
 
       - name: Lint
         run: npm run lint
