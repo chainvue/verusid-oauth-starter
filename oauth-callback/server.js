@@ -10,6 +10,7 @@ const clientId = process.env.CLIENT_ID || "verus-local-client"
 const clientSecret = process.env.CLIENT_SECRET || "verus-local-secret"
 const redirectUri = process.env.REDIRECT_URI || `http://${localHost}:5555/callback`
 const scopes = process.env.SCOPES || "openid offline verusid"
+const showDebugTokens = process.env.SHOW_DEBUG_TOKENS === "1"
 const stateCookieName = "verus_oauth_state"
 const nonceCookieName = "verus_oauth_nonce"
 const codeVerifierCookieName = "verus_oauth_code_verifier"
@@ -212,7 +213,7 @@ async function renderCallback(req, res, url) {
           ${renderField("PKCE verifier", codeVerifier ? "present" : "missing", codeVerifier ? "success" : "error")}
           ${renderField("State validation", stateValidation.message, stateValidation.ok ? "success" : "error")}
         </dl>
-        ${renderTokenSection(tokenResult, introspectionResult)}
+        ${renderTokenSection(tokenResult, introspectionResult, showDebugTokens)}
       </section>
       <p><a href="/">Start another login</a></p>
     </main>
@@ -334,7 +335,7 @@ async function introspectAccessToken(accessToken) {
   }
 }
 
-function renderTokenSection(tokenResult, introspectionResult) {
+function renderTokenSection(tokenResult, introspectionResult, includeRawTokens = false) {
   if (!tokenResult) {
     return ""
   }
@@ -354,11 +355,11 @@ function renderTokenSection(tokenResult, introspectionResult) {
           ${body.error_description ? renderField("Description", body.error_description, "error") : ""}
           ${body.raw ? renderField("Raw response", body.raw, "error") : ""}
         </dl>
-        <details>
+        ${includeRawTokens ? `<details>
           <summary>Debug: raw token response JSON</summary>
           <pre>${escapeHtml(JSON.stringify(body, null, 2))}</pre>
-        </details>
-        ${introspectionResult ? `<details>
+        </details>` : `<p class="muted">Raw token JSON is hidden. Set SHOW_DEBUG_TOKENS=1 for local inspection.</p>`}
+        ${includeRawTokens && introspectionResult ? `<details>
           <summary>Debug: access-token introspection JSON</summary>
           <pre>${escapeHtml(JSON.stringify(introspectionResult.body, null, 2))}</pre>
         </details>` : ""}

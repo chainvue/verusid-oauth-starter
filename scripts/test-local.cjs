@@ -16,6 +16,18 @@ const checks = [
     cwd: "examples/verusid-express-login",
   },
   {
+    label: "Consent node typecheck",
+    command: "pnpm",
+    args: ["typecheck"],
+    cwd: "consent-node",
+  },
+  {
+    label: "Consent node tests",
+    command: "pnpm",
+    args: ["test:run"],
+    cwd: "consent-node",
+  },
+  {
     label: "Docker Compose config",
     command: "docker",
     args: ["compose", "config"],

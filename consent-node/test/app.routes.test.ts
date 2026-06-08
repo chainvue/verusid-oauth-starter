@@ -1,4 +1,5 @@
 import request from "supertest"
+import express from "express"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const hydraAdmin = vi.hoisted(() => ({
@@ -25,6 +26,8 @@ vi.mock("../src/config", () => ({
   verusId: {},
   verusLoginTtlMs: 300000,
   verusServiceId: "fum@",
+  rateLimitWindowMs: 60000,
+  rateLimitMax: 120,
 }))
 
 vi.mock("../src/routes/csrf", () => ({
@@ -50,6 +53,19 @@ describe("consent-node routes", () => {
 
   it("returns health status", async () => {
     await request(app).get("/health").expect(200, { status: "ok" })
+  })
+
+  it("rate limits repeated requests from the same client", async () => {
+    const { createRateLimit } = await import("../src/app")
+    const limitedApp = express()
+    limitedApp.use(createRateLimit({ windowMs: 60000, max: 1 }))
+    limitedApp.get("/limited", (_req, res) => res.status(200).json({ ok: true }))
+
+    await request(limitedApp).get("/limited").expect(200, { ok: true })
+
+    const response = await request(limitedApp).get("/limited").expect(429)
+    expect(response.headers["retry-after"]).toBeDefined()
+    expect(response.body).toEqual({ error: "Too many requests" })
   })
 
   it("requires a Hydra login challenge", async () => {

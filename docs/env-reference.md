@@ -16,6 +16,11 @@ Run `npm run doctor:local` after changing local OAuth settings and after the loc
 | `SHOW_DEBUG_TOKENS` | unset | Keep unset. | `SHOW_DEBUG_TOKENS=1` exposes raw tokens in `/me`; use only locally. |
 | `CONSENT_NODE_URL` | `http://$LOCAL_HOST:3000` in doctor | Internal or public consent-node URL depending on deployment. | Doctor warns or fails on `/health`; start consent node and Verus RPC signer. |
 | `OAUTH_HTTP_TIMEOUT_MS` | `10000` | App-specific. | Slow network calls abort too early or hang too long. |
+| `MAX_PENDING_LOGINS` | `1000` | Set to the maximum in-flight wallet approvals this instance can hold safely. | Consent node rejects new login requests when the process-local pending store is full. |
+| `PENDING_LOGIN_STORE` | `memory` | `memory` is currently the only implementation and is process-local. | Production startup rejects memory mode unless `ALLOW_MEMORY_PENDING_LOGIN_STORE=1` is set. |
+| `ALLOW_MEMORY_PENDING_LOGIN_STORE` | unset | Set to `1` only for single-instance deployments that accept process-local pending state. | Production consent-node startup fails closed to avoid accidental multi-instance state loss. |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Tune per deployment or fronting proxy policy. | Too low can reject legitimate wallet/browser retries; too high weakens abuse controls. |
+| `RATE_LIMIT_MAX` | `120` | Tune per deployment or fronting proxy policy. | Repeated `/login`, `/consent`, and `/verus` requests receive `429`. |
 
 The hardcoded local default is retained for compatibility with the verified local setup. For phone testing, explicitly set `LOCAL_HOST` to the current LAN IP and use the same value when starting the stack, registering clients, running doctor, and opening the example app.
 
@@ -23,6 +28,12 @@ Production config validation expects HTTPS `REDIRECT_URI` and `HYDRA_PUBLIC_URL`
 valid URL values, finite positive `PORT` and `OAUTH_HTTP_TIMEOUT_MS`, private
 Hydra admin access, non-local secrets, and the default `openid offline verusid`
 scope unless your app deliberately owns a different scope contract.
+
+The consent node keeps pending wallet approvals in process memory. That is
+appropriate for the local stack and single-instance trials, but production
+startup requires explicit acknowledgement with
+`ALLOW_MEMORY_PENDING_LOGIN_STORE=1`. Multi-instance deployments should add a
+durable pending-login store before relying on wallet callbacks.
 
 The Express example uses `express-session` and stores `state`, `nonce`, and the
 PKCE `codeVerifier` server-side during `/login`. `/callback` must pass the saved

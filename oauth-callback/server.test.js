@@ -82,7 +82,7 @@ test("claim match reports success only when ID token and introspection Verus cla
   assert.equal(result.claimsMatch, false)
 })
 
-test("callback token debug output displays access, refresh, and ID tokens for the demo", () => {
+test("callback token debug output hides raw tokens by default", () => {
   const tokenResult = {
     ok: true,
     status: 200,
@@ -98,9 +98,31 @@ test("callback token debug output displays access, refresh, and ID tokens for th
   }
 
   const html = renderTokenSection(tokenResult, null)
-  assert.match(html, /Debug: raw token response JSON/)
   assert.match(html, /Refresh token present/)
   assert.match(html, />yes</)
+  assert.match(html, /Raw token JSON is hidden/)
+  assert.doesNotMatch(html, /secret-access-token/)
+  assert.doesNotMatch(html, /secret-refresh-token/)
+  assert.doesNotMatch(html, /secret-id-token/)
+})
+
+test("callback token debug output displays raw tokens when explicitly enabled", () => {
+  const tokenResult = {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    body: {
+      access_token: "secret-access-token",
+      refresh_token: "secret-refresh-token",
+      id_token: "secret-id-token",
+      token_type: "bearer",
+      expires_in: 3600,
+      scope: "openid offline verusid",
+    },
+  }
+
+  const html = renderTokenSection(tokenResult, null, true)
+  assert.match(html, /Debug: raw token response JSON/)
   assert.match(html, /secret-access-token/)
   assert.match(html, /secret-refresh-token/)
   assert.match(html, /secret-id-token/)
