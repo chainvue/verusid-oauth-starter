@@ -36,6 +36,9 @@ jobs:
           pnpm install --frozen-lockfile
         working-directory: consent-node
 
+      - name: Lint
+        run: npm run lint
+
       - name: Test Express login example
         run: npm test
         working-directory: examples/verusid-express-login
