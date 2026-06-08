@@ -5,6 +5,11 @@ import logger from "morgan"
 import path from "path"
 
 import { rateLimitMax, rateLimitWindowMs } from "./config"
+import {
+  recordRateLimitRejected,
+  requestIdMiddleware,
+  snapshotMetrics,
+} from "./observability"
 import consent from "./routes/consent"
 import login from "./routes/login"
 import logout from "./routes/logout"
@@ -26,6 +31,7 @@ export function createRateLimit(options: RateLimitOptions) {
     pruneExpiredRateLimitEntries(entries, now)
 
     if (!entries.has(key) && entries.size >= maxClients) {
+      recordRateLimitRejected()
       res.set("Retry-After", String(Math.ceil(options.windowMs / 1000)))
       res.status(429).json({ error: "Too many clients" })
       return
@@ -40,6 +46,7 @@ export function createRateLimit(options: RateLimitOptions) {
     entries.set(key, entry)
 
     if (entry.count > options.max) {
+      recordRateLimitRejected()
       res.set("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)))
       res.status(429).json({ error: "Too many requests" })
       return
@@ -66,13 +73,21 @@ export function createApp() {
   app.set("views", path.join(__dirname, "..", "views"))
   app.set("view engine", "pug")
 
-  app.use(logger("dev"))
+  logger.token("request-id", (_req, res) => String((res as Response).locals.requestId || "-"))
+
+  app.use(requestIdMiddleware)
+  app.use(logger(":method :url :status :response-time ms request_id=:request-id"))
   app.use(bodyParser.json())
   app.use(bodyParser.urlencoded({ extended: false }))
   app.use(cookieParser())
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" })
+  })
+
+  app.get("/metrics", (_req, res) => {
+    res.set("Cache-Control", "no-store")
+    res.status(200).json(snapshotMetrics())
   })
 
   app.get("/", (_req, res) => {

@@ -29,6 +29,12 @@ import {
   verusRpcTimeoutMs,
   verusServiceId,
 } from "./config"
+import {
+  recordPendingLoginCompleted,
+  recordPendingLoginCreated,
+  recordPendingLoginErrored,
+  recordPendingLoginRejected,
+} from "./observability"
 
 type ResolvedIdentity = NonNullable<
   Awaited<ReturnType<typeof verusId.interface.getIdentity>>["result"]
@@ -400,6 +406,7 @@ export async function createPendingLogin(loginChallenge: string) {
   }
 
   await pendingStore.set(session)
+  recordPendingLoginCreated()
   return session
 }
 
@@ -446,6 +453,7 @@ export async function completePendingLogin(response: LoginConsentResponse) {
       session.status = "rejected"
       session.error = "The wallet rejected the Verus login request."
       await pendingStore.set(session)
+      recordPendingLoginRejected()
       return session
     }
 
@@ -500,11 +508,13 @@ export async function completePendingLogin(response: LoginConsentResponse) {
     session.verusId = userIAddress
     session.verusIdName = friendlyName
     await pendingStore.set(session)
+    recordPendingLoginCompleted()
     return session
   } catch (error) {
     session.status = "error"
     session.error = error instanceof Error ? error.message : String(error)
     await pendingStore.set(session)
+    recordPendingLoginErrored()
     return session
   }
 }
