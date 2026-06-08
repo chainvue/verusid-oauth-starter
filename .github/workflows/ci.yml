@@ -14,10 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use HTTPS for GitHub package dependencies
+      - name: Configure git for HTTPS and GitHub token
         run: |
-          git config --global url."https://github.com/".insteadOf git@github.com:
-          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "git@github.com:"
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "ssh://git@github.com/"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
