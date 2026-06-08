@@ -21,6 +21,8 @@ export const verusServiceId = process.env.VERUS_SERVICE_ID || "fum@"
 export const verusLoginTtlMs = Number(process.env.VERUS_LOGIN_TTL_MS || 300000)
 export const verusRpcTimeoutMs = Number(process.env.VERUS_RPC_TIMEOUT_MS || 10000)
 export const verusChain = process.env.VERUS_CHAIN || "VRSCTEST"
+export const pendingLoginStore = process.env.PENDING_LOGIN_STORE || "memory"
+export const maxPendingLogins = Number(process.env.MAX_PENDING_LOGINS || 1000)
 
 export const verusId = new VerusIdInterface(
   verusChain,
@@ -44,6 +46,8 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
   const configuredRpcTimeout = Number(env.VERUS_RPC_TIMEOUT_MS || 10000)
   const configuredRpcUser = env.VERUS_RPC_USER || ""
   const configuredRpcPassword = env.VERUS_RPC_PASSWORD || ""
+  const configuredPendingStore = env.PENDING_LOGIN_STORE || "memory"
+  const configuredMaxPendingLogins = Number(env.MAX_PENDING_LOGINS || 1000)
 
   const parsedBaseUrl = parseUrl(configuredBaseUrl)
   const parsedHydraAdminUrl = parseUrl(configuredHydraAdminUrl)
@@ -74,6 +78,16 @@ export function getProductionConfigErrors(env: Record<string, string | undefined
 
   if (Boolean(configuredRpcUser) !== Boolean(configuredRpcPassword)) {
     errors.push("Production VERUS_RPC_USER and VERUS_RPC_PASSWORD must be configured together.")
+  }
+
+  if (configuredPendingStore !== "memory") {
+    errors.push("Production PENDING_LOGIN_STORE must be \"memory\" until a durable store is implemented.")
+  } else if (env.ALLOW_MEMORY_PENDING_LOGIN_STORE !== "1") {
+    errors.push("Production PENDING_LOGIN_STORE=memory is process-local; set ALLOW_MEMORY_PENDING_LOGIN_STORE=1 only for single-instance deployments.")
+  }
+
+  if (!Number.isInteger(configuredMaxPendingLogins) || !Number.isFinite(configuredMaxPendingLogins) || configuredMaxPendingLogins <= 0) {
+    errors.push("Production MAX_PENDING_LOGINS must be a finite positive integer.")
   }
 
   return errors

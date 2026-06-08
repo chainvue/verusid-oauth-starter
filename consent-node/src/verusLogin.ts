@@ -19,6 +19,7 @@ import {
 import {
   baseUrl,
   hydraAdmin,
+  maxPendingLogins,
   verusChain,
   verusId,
   verusLoginTtlMs,
@@ -50,7 +51,12 @@ class MemoryPendingLoginStore {
   private readonly byId = new Map<string, PendingVerusLogin>()
   private readonly byChallengeId = new Map<string, string>()
 
+  constructor(private readonly maxEntries: number) {}
+
   set(session: PendingVerusLogin) {
+    if (this.byId.size >= this.maxEntries && !this.byId.has(session.id)) {
+      throw new Error(`Too many pending Verus login requests. Try again after an existing request expires.`)
+    }
     this.byId.set(session.id, session)
     this.byChallengeId.set(session.verusChallengeId, session.id)
   }
@@ -90,7 +96,7 @@ class MemoryPendingLoginStore {
   }
 }
 
-const pendingStore = new MemoryPendingLoginStore()
+const pendingStore = new MemoryPendingLoginStore(maxPendingLogins)
 const I_ADDR_VERSION = 102
 
 function randomIAddressLikeId() {

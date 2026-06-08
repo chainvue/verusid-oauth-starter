@@ -22,6 +22,7 @@ vi.mock("../src/config", () => ({
   verusLoginTtlMs: 300000,
   verusRpcTimeoutMs: 10000,
   verusServiceId: "fum@",
+  maxPendingLogins: 1,
 }))
 
 vi.mock("qrcode", () => ({
@@ -181,6 +182,21 @@ describe("completePendingLogin", () => {
     vi.setSystemTime(new Date("2026-06-07T10:35:46Z"))
 
     expect(getPendingLogin(pending.id)).toBeUndefined()
+  })
+
+  it("rejects new pending login sessions when the memory store is full", async () => {
+    vi.resetModules()
+    const { createPendingLogin } = await import("../src/verusLogin")
+
+    verusId.interface.getIdentity.mockResolvedValue({
+      result: { identity: { identityaddress: "iServiceAddress" } },
+    })
+
+    await createPendingLogin("login-123")
+
+    await expect(createPendingLogin("login-456")).rejects.toThrow(
+      "Too many pending Verus login requests",
+    )
   })
 
   it("removes pending login sessions from challenge lookup", async () => {
