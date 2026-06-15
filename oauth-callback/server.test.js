@@ -8,6 +8,7 @@ const {
   buildVerificationChecklist,
   computeAtHash,
   createPkceChallenge,
+  createPkceVerifier,
   renderClaimsSection,
   renderIntegrationSection,
   renderResultSummary,
@@ -23,11 +24,26 @@ const verusClaims = {
   verus_login_at: 1780828245,
 }
 
+test("PKCE verifier meets required length bounds", () => {
+  const verifier = createPkceVerifier()
+
+  assert.ok(verifier.length >= 43)
+  assert.ok(verifier.length <= 128)
+})
+
+test("PKCE verifier uses only base64url-safe characters without padding", () => {
+  const verifier = createPkceVerifier()
+
+  assert.match(verifier, /^[A-Za-z0-9_-]+$/)
+  assert.doesNotMatch(verifier, /=/)
+})
+
 test("authorization URL includes PKCE challenge when verifier is provided", () => {
   const url = buildAuthorizationUrl("state-123", "nonce-123", "verifier-123")
 
   assert.equal(url.searchParams.get("state"), "state-123")
   assert.equal(url.searchParams.get("nonce"), "nonce-123")
+  assert.equal(url.searchParams.get("prompt"), "login")
   assert.equal(url.searchParams.get("code_challenge"), createPkceChallenge("verifier-123"))
   assert.equal(url.searchParams.get("code_challenge_method"), "S256")
 })

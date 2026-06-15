@@ -95,7 +95,7 @@ function renderHome(res) {
 function redirectToHydra(res) {
   const state = randomValue()
   const nonce = randomValue()
-  const codeVerifier = randomValue()
+  const codeVerifier = createPkceVerifier()
   const authUrl = buildAuthorizationUrl(state, nonce, codeVerifier)
 
   res.writeHead(302, {
@@ -215,7 +215,7 @@ async function renderCallback(req, res, url) {
         </dl>
         ${renderTokenSection(tokenResult, introspectionResult, showDebugTokens)}
       </section>
-      <p><a href="/">Start another login</a></p>
+      <p><a href="/login">Start another login</a></p>
     </main>
   </body>
 </html>`,
@@ -252,6 +252,7 @@ function buildAuthorizationUrl(state, nonce, codeVerifier) {
   authUrl.searchParams.set("redirect_uri", redirectUri)
   authUrl.searchParams.set("state", state)
   authUrl.searchParams.set("nonce", nonce)
+  authUrl.searchParams.set("prompt", "login")
   if (codeVerifier) {
     authUrl.searchParams.set("code_challenge", createPkceChallenge(codeVerifier))
     authUrl.searchParams.set("code_challenge_method", "S256")
@@ -826,6 +827,10 @@ function randomValue() {
   return crypto.randomBytes(24).toString("base64url")
 }
 
+function createPkceVerifier() {
+  return crypto.randomBytes(32).toString("base64url")
+}
+
 function createPkceChallenge(codeVerifier) {
   return crypto.createHash("sha256").update(codeVerifier).digest("base64url")
 }
@@ -934,6 +939,7 @@ module.exports = {
   buildSignInResult,
   buildVerificationChecklist,
   createPkceChallenge,
+  createPkceVerifier,
   computeAtHash,
   renderClaimsSection,
   renderIntegrationSection,
