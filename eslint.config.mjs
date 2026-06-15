@@ -7,6 +7,7 @@ export default [
     ignores: [
       "**/lib/**",
       "**/node_modules/**",
+      "**/.pnpm-store/**",
     ],
   },
   js.configs.recommended,

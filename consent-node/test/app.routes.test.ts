@@ -218,7 +218,7 @@ describe("consent-node routes", () => {
       verusId: "iUserAddress",
       verusIdName: "user@",
     })
-    expect(verusLogin.removePendingLogin).toHaveBeenCalledWith("pending-123")
+    expect(verusLogin.removePendingLogin).not.toHaveBeenCalled()
   })
 
   it("returns terminal status once and then prunes it", async () => {

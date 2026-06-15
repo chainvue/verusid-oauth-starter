@@ -10,6 +10,7 @@ const verusId = vi.hoisted(() => ({
     signData: vi.fn(),
   },
   getChainId: vi.fn(),
+  getCurrentHeight: vi.fn(),
   verifyLoginConsentRequest: vi.fn(),
   verifyLoginConsentResponse: vi.fn(),
 }))
@@ -36,13 +37,15 @@ vi.mock("qrcode", () => ({
 vi.mock("verus-typescript-primitives", async () => {
   class LoginConsentChallenge {
     challenge_id: string
+    mode?: string
 
-    constructor(input: { challenge_id: string }) {
+    constructor(input: { challenge_id: string, redirect_uris?: Array<{ mode: string }> }) {
       this.challenge_id = input.challenge_id
+      this.mode = input.redirect_uris?.[0]?.mode
     }
 
     toSha256() {
-      return Buffer.from("challenge-hash")
+      return Buffer.from(`challenge-hash:${this.challenge_id}`)
     }
   }
 
@@ -55,11 +58,31 @@ vi.mock("verus-typescript-primitives", async () => {
     }
 
     toWalletDeeplinkUri() {
-      return `verus://request/${this.challenge.challenge_id}`
+      return `verus://request/${this.challenge.challenge_id}/${this.challenge.mode}`
+    }
+
+    toQrString() {
+      return `qr:${this.challenge.challenge_id}`
+    }
+
+    getChallengeHash(height: number) {
+      return Buffer.from(`request-hash:${this.challenge.challenge_id}:${height}`)
     }
 
     toString() {
-      return `request:${this.challenge.challenge_id}`
+      return `request:${this.challenge.challenge_id}:${this.challenge.mode}`
+    }
+  }
+
+  class LoginConsentResponse {
+    decoded?: string
+
+    constructor(input?: { decoded?: string }) {
+      this.decoded = input?.decoded
+    }
+
+    fromBuffer(buffer: Buffer) {
+      this.decoded = buffer.toString("utf8")
     }
   }
 
@@ -89,7 +112,7 @@ vi.mock("verus-typescript-primitives", async () => {
     LOGIN_CONSENT_WEBHOOK_VDXF_KEY: { vdxfid: "webhook" },
     LoginConsentChallenge,
     LoginConsentRequest,
-    LoginConsentResponse: class {},
+    LoginConsentResponse,
     RedirectUri,
     RequestedPermission,
     VerusIDSignature,
@@ -107,6 +130,7 @@ describe("completePendingLogin", () => {
       result: { signature: "service-signature" },
     })
     verusId.getChainId.mockResolvedValue("VRSCTEST")
+    verusId.getCurrentHeight.mockResolvedValue(123456)
     verusId.verifyLoginConsentRequest.mockResolvedValue(true)
     verusId.verifyLoginConsentResponse.mockResolvedValue(true)
     hydraAdmin.acceptOAuth2LoginRequest.mockResolvedValue({
@@ -203,6 +227,66 @@ describe("completePendingLogin", () => {
     expect(verusId.interface.getIdentity).not.toHaveBeenCalled()
     expect(verusId.getChainId).not.toHaveBeenCalled()
     expect(verusId.interface.signData).not.toHaveBeenCalled()
+  })
+
+  it("signs login consent requests with the challenge hash RPC signData wraps", async () => {
+    vi.resetModules()
+    const { createPendingLogin } = await import("../src/verusLogin")
+
+    verusId.interface.getIdentity.mockResolvedValueOnce({
+      result: { identity: { identityaddress: "iServiceAddress" } },
+    })
+
+    await createPendingLogin("login-123")
+
+    expect(verusId.getCurrentHeight).not.toHaveBeenCalled()
+    expect(verusId.interface.signData).toHaveBeenNthCalledWith(1, {
+      address: "iServiceAddress",
+      datahash: Buffer.from("challenge-hash:iChallengeAddress").toString("hex"),
+    })
+    expect(verusId.interface.signData).toHaveBeenNthCalledWith(2, {
+      address: "iServiceAddress",
+      datahash: Buffer.from("challenge-hash:iChallengeAddress").toString("hex"),
+    })
+  })
+
+  it("renders QR codes from wallet deeplinks while keeping redirect-mode deeplinks for the button", async () => {
+    vi.resetModules()
+    const QRCode = (await import("qrcode")).default
+    const { createPendingLogin } = await import("../src/verusLogin")
+
+    verusId.interface.getIdentity.mockResolvedValueOnce({
+      result: { identity: { identityaddress: "iServiceAddress" } },
+    })
+
+    const pending = await createPendingLogin("login-123")
+
+    expect(QRCode.toDataURL).toHaveBeenCalledWith("verus://request/iChallengeAddress/webhook", {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 320,
+    })
+    expect(pending.deeplink).toBe("verus://request/iChallengeAddress/redirect")
+  })
+
+  it("parses raw, VDXF-keyed, named, camelCase, and deeplink login consent responses", async () => {
+    vi.resetModules()
+    const { parseLoginConsentResponse } = await import("../src/verusLogin")
+    const encoded = Buffer.from("wallet-response").toString("base64url")
+    const parse = (input: Parameters<typeof parseLoginConsentResponse>[0]) =>
+      parseLoginConsentResponse(input) as unknown as { decoded?: string }
+
+    expect(parse(encoded).decoded).toBe("wallet-response")
+    expect(parse({ response: encoded }).decoded).toBe("wallet-response")
+    expect(parse({ login_consent_response: encoded }).decoded).toBe("wallet-response")
+    expect(parse({ loginConsentResponse: encoded }).decoded).toBe("wallet-response")
+    expect(parse({ response: undefined, other: encoded }).decoded).toBe("wallet-response")
+    expect(parse({
+      response: `verus://x-callback-url/login?response=${encoded}`,
+    }).decoded).toBe("wallet-response")
+    expect(parse({
+      response: `verus://x-callback-url/login?response=${encodeURIComponent(encoded)}`,
+    }).decoded).toBe("wallet-response")
   })
 
   it("removes pending login sessions from challenge lookup", async () => {
