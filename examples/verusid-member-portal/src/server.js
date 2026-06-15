@@ -1,13 +1,7 @@
-import { assertProductionConfig, createConfig } from "@chainvue/verusid-oauth"
-import { createApp } from "./app.js"
+import { assertProductionConfig } from "@chainvue/verusid-oauth"
+import { createApp, createMemberPortalConfig } from "./app.js"
 
-const config = createConfig({
-  PORT: process.env.PORT || "5570",
-  CLIENT_ID: process.env.CLIENT_ID || "verus-member-portal",
-  CLIENT_SECRET: process.env.CLIENT_SECRET || "verus-member-secret",
-  REDIRECT_URI: process.env.REDIRECT_URI || `http://${process.env.LOCAL_HOST || "192.168.0.160"}:5570/callback`,
-  SESSION_SECRET: process.env.SESSION_SECRET || "local-member-portal-session-secret",
-})
+const config = createMemberPortalConfig()
 
 if (process.env.NODE_ENV === "production") {
   assertProductionConfig(config)

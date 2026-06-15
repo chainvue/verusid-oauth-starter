@@ -4,7 +4,7 @@ import test from "node:test"
 import request from "supertest"
 
 import { createConfig } from "@chainvue/verusid-oauth"
-import { createApp } from "../src/app.js"
+import { createApp, createMemberPortalConfig } from "../src/app.js"
 import {
   createLoginRequest,
   createPkceVerifier,
@@ -75,6 +75,26 @@ test("login request uses a compliant 32-byte PKCE verifier", () => {
   )
   assert.equal(loginRequest.authorizationUrl.searchParams.get("code_challenge_method"), "S256")
   assert.equal(loginRequest.authorizationUrl.searchParams.get("prompt"), "login")
+})
+
+test("member portal config preserves Docker Hydra environment overrides", () => {
+  const config = createMemberPortalConfig({
+    LOCAL_HOST: "192.168.0.160",
+    PORT: "5570",
+    HYDRA_PUBLIC_URL: "http://192.168.0.160:4444",
+    HYDRA_ADMIN_URL: "http://hydra:4445",
+    CLIENT_ID: "verus-member-portal",
+    CLIENT_SECRET: "verus-member-secret",
+    REDIRECT_URI: "http://192.168.0.160:5570/callback",
+    SCOPES: "openid offline verusid",
+    SESSION_SECRET: "test-secret",
+  })
+
+  assert.equal(config.port, 5570)
+  assert.equal(config.hydraPublicUrl, "http://192.168.0.160:4444")
+  assert.equal(config.hydraAdminUrl, "http://hydra:4445")
+  assert.equal(config.clientId, "verus-member-portal")
+  assert.equal(config.redirectUri, "http://192.168.0.160:5570/callback")
 })
 
 test("/callback creates a sanitized member session after verification", async () => {
