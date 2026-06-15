@@ -68,7 +68,7 @@ services:
     ports:
       - "5555:5555"
     volumes:
-      - ./oauth-callback:/app
+      - ./examples/oauth-callback-debug:/app
     command: node server.js
     depends_on:
       - hydra

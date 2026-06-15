@@ -12,6 +12,10 @@ import {
 } from "@chainvue/verusid-oauth"
 import { createApp } from "../src/app.js"
 import { getStartupWarnings } from "../src/startup.js"
+import {
+  createLoginRequest,
+  createPkceVerifier,
+} from "../src/verus-routes.js"
 
 const baseConfig = createConfig({
   LOCAL_HOST: "192.168.0.160",
@@ -51,11 +55,30 @@ test("/login sets session cookie and redirects to Hydra authorization URL", asyn
   assert.equal(location.searchParams.get("scope"), "openid offline verusid")
   assert.ok(location.searchParams.get("state"))
   assert.ok(location.searchParams.get("nonce"))
+  assert.equal(location.searchParams.get("prompt"), "login")
   assert.ok(location.searchParams.get("code_challenge"))
   assert.equal(location.searchParams.get("code_challenge_method"), "S256")
   assert.match(String(response.headers["set-cookie"]), /verusid_login_session=/)
   assert.match(String(response.headers["set-cookie"]), /HttpOnly/)
   assert.match(String(response.headers["set-cookie"]), /SameSite=Lax/)
+})
+
+test("login request uses a Hydra-compliant PKCE verifier", () => {
+  const verifier = createPkceVerifier()
+  const loginRequest = createLoginRequest(baseConfig)
+
+  assert.ok(verifier.length >= 43)
+  assert.ok(verifier.length <= 128)
+  assert.match(verifier, /^[A-Za-z0-9_-]+$/)
+  assert.doesNotMatch(verifier, /=/)
+  assert.ok(loginRequest.codeVerifier.length >= 43)
+  assert.ok(loginRequest.codeVerifier.length <= 128)
+  assert.equal(
+    loginRequest.authorizationUrl.searchParams.get("code_challenge"),
+    crypto.createHash("sha256").update(loginRequest.codeVerifier).digest("base64url"),
+  )
+  assert.equal(loginRequest.authorizationUrl.searchParams.get("code_challenge_method"), "S256")
+  assert.equal(loginRequest.authorizationUrl.searchParams.get("prompt"), "login")
 })
 
 test("/callback rejects missing saved state before token exchange", async () => {

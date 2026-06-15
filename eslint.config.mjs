@@ -31,7 +31,7 @@ export default [
     },
   },
   {
-    files: ["**/*.cjs", "oauth-callback/**/*.js"],
+    files: ["**/*.cjs", "examples/oauth-callback-debug/**/*.js"],
     languageOptions: {
       sourceType: "commonjs",
     },

@@ -11,7 +11,7 @@ Scope: end-to-end audit of the starter repository, including Docker/Hydra config
 - Runtime entry points:
   - `docker-compose.yml`
   - `consent-node/src/server.ts`
-  - `oauth-callback/server.js`
+  - `examples/oauth-callback-debug/server.js`
   - `examples/verusid-express-login/src/server.js`
 - Test setup:
   - Root `npm test` runs `scripts/test-local.cjs`.
@@ -48,7 +48,7 @@ The repository is clear about being a local starter and has useful docs, scripts
 | P1 | Reliability | Pending Verus login state is in-memory only. | `consent-node/src/verusLogin.ts` module-level `pending` map. | High | M | High |
 | P1 | Production Safety | Local Hydra admin/dev stack is exposed on host ports with static local secrets. | `docker-compose.yml`, `hydra.yml`. | High | M | High |
 | P2 | Reliability | Consent-node lacks production config validation and explicit Verus RPC timeout policy. | `consent-node/src/config.ts`, `consent-node/src/verusLogin.ts`. | Medium | M | High |
-| P2 | Security/DX | Callback dashboard is intentionally unsafe but copyable: raw tokens, no PKCE, non-secure cookies. | `oauth-callback/server.js`. | Medium | M | High |
+| P2 | Security/DX | Callback dashboard is intentionally debug-focused but copyable: raw-token mode, local HTTP cookies, and low-level snippets. | `examples/oauth-callback-debug/server.js`. | Medium | M | High |
 | P2 | CI/Test Coverage | CI does not install, typecheck, or test `consent-node`. | `.github/workflows/ci.yml`. | Medium | S | High |
 | P2 | Supply Chain | Consent-node uses GitHub dependencies and alpha Hydra client. | `consent-node/package.json`. | Medium | M | High |
 | P3 | Developer Experience | No lint/format scripts. | Root and package `package.json` files. | Low | S | High |
@@ -114,7 +114,7 @@ The repository is clear about being a local starter and has useful docs, scripts
 - Impact: Medium
 - Effort: M
 - Confidence: High
-- Evidence: `oauth-callback/server.js` uses state/nonce cookies but no PKCE, displays raw token JSON, includes copy snippets with client secret, and does not set `secure` cookies. The page warns that this is sensitive local-demo output, but the file is copyable.
+- Evidence: `examples/oauth-callback-debug/server.js` is a low-level proof dashboard with optional raw token JSON, copy snippets that include client-secret placeholders, and local HTTP cookies. The page warns that this is sensitive local-demo output, but the file is copyable.
 - Why it matters: Developers may copy the dashboard flow instead of the safer SDK-backed Express example.
 - Recommended fix: Either rewrite it to use `@chainvue/verusid-oauth` with PKCE and debug-token gating, or move it under an explicitly named `local-debug-callback` folder with stronger README warnings and no production-looking snippets.
 - Suggested tests: callback auth URL includes PKCE; raw tokens are hidden unless debug mode is explicitly enabled; cookies are secure when production mode is set.
@@ -170,7 +170,7 @@ Confirmed issues:
 
 - Consent POST can grant unrequested allowed scopes.
 - Local Docker/Hydra config exposes admin and local secrets.
-- Callback dashboard displays raw tokens and lacks PKCE.
+- Callback dashboard is a local debug surface and should not be copied as a production app template.
 
 Recommended hardening:
 
@@ -201,7 +201,7 @@ Highest-value tests:
 - Completed/rejected/error pending sessions are pruned once and cannot be replayed.
 - Production config guard rejects local defaults.
 - Verus RPC timeout during request creation surfaces a user-safe error.
-- Callback dashboard, if retained, requires PKCE and hides tokens unless explicitly local debug.
+- Callback dashboard, if retained, should keep PKCE and hide tokens unless explicitly local debug.
 - CI runs consent-node Vitest and TypeScript checks.
 
 ## Master Roadmap
