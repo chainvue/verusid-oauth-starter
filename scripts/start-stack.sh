@@ -40,14 +40,16 @@ docker compose up -d postgres
 wait_for_command "Postgres readiness" "postgres" docker compose exec -T postgres pg_isready -U hydra -d hydra
 
 docker compose run --rm hydra migrate sql up -e --yes
-docker compose up -d hydra consent-node oauth-callback verusid-express-login
+docker compose up -d hydra consent-node oauth-callback verusid-express-login verusid-member-portal
 
 wait_for_url "Hydra discovery" "$HYDRA_PUBLIC_URL/.well-known/openid-configuration" "hydra"
 ./scripts/create-client.sh
 ./scripts/create-verusid-express-login-client.sh
+./scripts/create-verusid-member-portal-client.sh
 wait_for_url "consent-node /health" "$CONSENT_NODE_URL/health" "consent-node"
 wait_for_url "OAuth callback home" "$CALLBACK_URL/" "oauth-callback"
 wait_for_url "VerusID Express Login home" "$EXPRESS_LOGIN_URL/" "verusid-express-login"
+wait_for_url "VerusID Member Portal home" "$MEMBER_PORTAL_URL/" "verusid-member-portal"
 
 cat <<EOF
 
@@ -60,6 +62,7 @@ Service URLs:
   OAuth callback home:  $CALLBACK_URL/
   OAuth redirect URI:   $REDIRECT_URI
   Express login home:   $EXPRESS_LOGIN_URL/
+  Member portal home:   $MEMBER_PORTAL_URL/
 
 Automated verification:
   ./scripts/verify-local-flow.sh

@@ -31,14 +31,15 @@ npm ci
 cp .env.example .env.local
 ```
 
-Start the local stack and register the Express example client with the same LAN host:
+Start the local stack and register the example clients with the same LAN host:
 
 ```sh
 LOCAL_HOST=$LOCAL_HOST ./scripts/start-stack.sh
 LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-express-login-client.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-member-portal-client.sh
 ```
 
-The Docker stack includes a packaged copy of the Express example on port `5560`. Stop only that service before running the cloned example locally on the same port:
+The Docker stack includes a packaged copy of the Express example on port `5560` and the richer member portal showcase on port `5570`. Stop only the service you want to run locally on the same port:
 
 ```sh
 docker compose stop verusid-express-login
@@ -58,6 +59,7 @@ Open:
 
 ```text
 http://$LOCAL_HOST:5560/
+http://$LOCAL_HOST:5570/
 ```
 
 If your phone cannot open the QR/deeplink target, re-check `LOCAL_HOST` and confirm the phone is on a network that can reach the browser host.
@@ -103,8 +105,9 @@ The stack includes:
 - Editable TypeScript/Express consent node under `consent-node/`.
 - Debug callback dashboard under `examples/oauth-callback-debug/`.
 - Copy-ready Express login app under `examples/verusid-express-login/`, using `express-session` with an HTTP-only, lax same-site cookie.
+- Full-featured member portal showcase under `examples/verusid-member-portal/`, using the same SDK flow in a richer logged-in product shell.
 
-Both relying-party apps live under `examples/`: use the debug callback dashboard to inspect the raw OAuth/OIDC exchange, and use the Express login app as the production-shaped integration template.
+Relying-party apps live under `examples/`: use the debug callback dashboard to inspect the raw OAuth/OIDC exchange, use the Express login app as the production-shaped integration template, and use the member portal as a showcase of protected server-rendered product screens.
 
 The Express example stores OAuth `state`, `nonce`, and PKCE `codeVerifier` in
 the server-side session during `/login`; `/callback` passes the saved verifier

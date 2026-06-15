@@ -16,6 +16,12 @@ const checks = [
     cwd: "examples/verusid-express-login",
   },
   {
+    label: "Member portal example tests",
+    command: "npm",
+    args: ["test"],
+    cwd: "examples/verusid-member-portal",
+  },
+  {
     label: "Consent node typecheck",
     command: "pnpm",
     args: ["typecheck"],

@@ -93,6 +93,26 @@ services:
     depends_on:
       - hydra
 
+  verusid-member-portal:
+    image: node:22-alpine
+    working_dir: /repo
+    environment:
+      PORT: "5570"
+      HYDRA_PUBLIC_URL: ${HYDRA_PUBLIC_URL:-http://192.168.0.160:4444}
+      HYDRA_ADMIN_URL: http://hydra:4445
+      CLIENT_ID: ${MEMBER_PORTAL_CLIENT_ID:-verus-member-portal}
+      CLIENT_SECRET: ${MEMBER_PORTAL_CLIENT_SECRET:-verus-member-secret}
+      REDIRECT_URI: ${MEMBER_PORTAL_REDIRECT_URI:-http://192.168.0.160:5570/callback}
+      SCOPES: ${SCOPES:-openid offline verusid}
+      SESSION_SECRET: ${MEMBER_PORTAL_SESSION_SECRET:-local-member-portal-session-secret}
+    ports:
+      - "5570:5570"
+    volumes:
+      - .:/repo
+    command: sh -c "npm ci && cd examples/verusid-member-portal && npm ci && npm start"
+    depends_on:
+      - hydra
+
 volumes:
   hydra-postgres:
   consent-node-modules:

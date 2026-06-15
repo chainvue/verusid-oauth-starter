@@ -34,6 +34,7 @@ check_url "Hydra discovery" "$HYDRA_PUBLIC_URL/.well-known/openid-configuration"
 check_url "consent-node /health" "$CONSENT_NODE_URL/health"
 check_url "OAuth callback home" "$CALLBACK_URL/"
 check_url "VerusID Express Login home" "$EXPRESS_LOGIN_URL/"
+check_url "VerusID Member Portal home" "$MEMBER_PORTAL_URL/"
 
 if docker compose exec -T hydra hydra get oauth2-client "$CLIENT_ID" --endpoint "$HYDRA_ADMIN_URL" >/dev/null 2>&1; then
   pass "Hydra client $CLIENT_ID registered"
@@ -46,6 +47,13 @@ if docker compose exec -T hydra hydra get oauth2-client "$EXPRESS_LOGIN_CLIENT_I
   pass "Hydra client $EXPRESS_LOGIN_CLIENT_ID registered"
 else
   fail_check "Hydra client $EXPRESS_LOGIN_CLIENT_ID registered"
+fi
+
+MEMBER_PORTAL_CLIENT_ID="${MEMBER_PORTAL_CLIENT_ID:-verus-member-portal}"
+if docker compose exec -T hydra hydra get oauth2-client "$MEMBER_PORTAL_CLIENT_ID" --endpoint "$HYDRA_ADMIN_URL" >/dev/null 2>&1; then
+  pass "Hydra client $MEMBER_PORTAL_CLIENT_ID registered"
+else
+  fail_check "Hydra client $MEMBER_PORTAL_CLIENT_ID registered"
 fi
 
 if [ "$failed" -ne 0 ]; then

@@ -1,0 +1,208 @@
+import assert from "node:assert/strict"
+import crypto from "node:crypto"
+import test from "node:test"
+import request from "supertest"
+
+import { createConfig } from "@chainvue/verusid-oauth"
+import { createApp } from "../src/app.js"
+import {
+  createLoginRequest,
+  createPkceVerifier,
+} from "../src/oauth.js"
+
+const baseConfig = createConfig({
+  LOCAL_HOST: "192.168.0.160",
+  HYDRA_PUBLIC_URL: "http://192.168.0.160:4444",
+  HYDRA_ADMIN_URL: "http://127.0.0.1:4445",
+  CLIENT_ID: "verus-member-portal",
+  CLIENT_SECRET: "verus-member-secret",
+  REDIRECT_URI: "http://192.168.0.160:5570/callback",
+  SESSION_SECRET: "test-secret",
+})
+
+const verusClaims = {
+  verus_id: "iUserAddress",
+  verus_id_name: "member@",
+  verus_chain: "VRSCTEST",
+  verus_auth_method: "verus_login_consent",
+  verus_login_at: 1780828245,
+}
+
+test("home renders the signed-out member portal state", async () => {
+  const response = await request(createApp({ config: baseConfig })).get("/")
+
+  assert.equal(response.status, 200)
+  assert.match(response.text, /VerusID member access/)
+  assert.match(response.text, /Login with VerusID/)
+  assert.match(response.text, /Developer panel/)
+  assert.match(response.text, /openid offline verusid/)
+  assert.match(response.text, /http:\/\/192\.168\.0\.160:5570\/callback/)
+})
+
+test("/login redirects to Hydra with prompt=login and S256 PKCE", async () => {
+  const response = await request(createApp({ config: baseConfig })).get("/login")
+
+  assert.equal(response.status, 302)
+  const location = new URL(response.headers.location)
+  assert.equal(location.origin, "http://192.168.0.160:4444")
+  assert.equal(location.pathname, "/oauth2/auth")
+  assert.equal(location.searchParams.get("client_id"), "verus-member-portal")
+  assert.equal(location.searchParams.get("scope"), "openid offline verusid")
+  assert.equal(location.searchParams.get("redirect_uri"), "http://192.168.0.160:5570/callback")
+  assert.equal(location.searchParams.get("prompt"), "login")
+  assert.ok(location.searchParams.get("state"))
+  assert.ok(location.searchParams.get("nonce"))
+  assert.ok(location.searchParams.get("code_challenge"))
+  assert.equal(location.searchParams.get("code_challenge_method"), "S256")
+  assert.match(String(response.headers["set-cookie"]), /verusid_member_portal=/)
+  assert.match(String(response.headers["set-cookie"]), /HttpOnly/)
+  assert.match(String(response.headers["set-cookie"]), /SameSite=Lax/)
+})
+
+test("login request uses a compliant 32-byte PKCE verifier", () => {
+  const verifier = createPkceVerifier()
+  const loginRequest = createLoginRequest(baseConfig)
+
+  assert.ok(verifier.length >= 43)
+  assert.ok(verifier.length <= 128)
+  assert.match(verifier, /^[A-Za-z0-9_-]+$/)
+  assert.doesNotMatch(verifier, /=/)
+  assert.ok(loginRequest.codeVerifier.length >= 43)
+  assert.ok(loginRequest.codeVerifier.length <= 128)
+  assert.equal(
+    loginRequest.authorizationUrl.searchParams.get("code_challenge"),
+    crypto.createHash("sha256").update(loginRequest.codeVerifier).digest("base64url"),
+  )
+  assert.equal(loginRequest.authorizationUrl.searchParams.get("code_challenge_method"), "S256")
+  assert.equal(loginRequest.authorizationUrl.searchParams.get("prompt"), "login")
+})
+
+test("/callback creates a sanitized member session after verification", async () => {
+  const client = {
+    async completeLogin(options) {
+      assert.equal(options.code, "returned-code")
+      assert.equal(options.returnedState, options.expectedState)
+      assert.ok(options.expectedNonce)
+      assert.ok(options.codeVerifier)
+      assert.equal(options.includeRawTokens, undefined)
+      return {
+        subject: "iUserAddress",
+        verus: verusClaims,
+        grantedScope: "openid offline verusid",
+        refreshTokenPresent: true,
+        tokens: {
+          access_token: "raw-access-token",
+          id_token: "raw-id-token",
+          refresh_token: "raw-refresh-token",
+        },
+      }
+    },
+    toPublicSession(session) {
+      return {
+        subject: session.subject,
+        verus: session.verus,
+        grantedScope: session.grantedScope,
+        refreshTokenPresent: session.refreshTokenPresent,
+      }
+    },
+  }
+  const app = createApp({ config: baseConfig, client })
+  const agent = request.agent(app)
+  const login = await agent.get("/login")
+  const location = new URL(login.headers.location)
+  const state = location.searchParams.get("state")
+
+  const callback = await agent.get(`/callback?code=returned-code&state=${encodeURIComponent(state)}`)
+
+  assert.equal(callback.status, 302)
+  assert.equal(callback.headers.location, "/")
+
+  const home = await agent.get("/")
+  assert.equal(home.status, 200)
+  assert.match(home.text, /VerusID Passport/)
+  assert.match(home.text, /member@/)
+
+  const me = await agent.get("/me")
+  assert.equal(me.status, 200)
+  assert.equal(me.body.authenticated, true)
+  assert.equal(me.body.subject, "iUserAddress")
+  assert.equal(me.body.verus.verus_id, "iUserAddress")
+  assert.equal(me.body.grantedScope, "openid offline verusid")
+  assert.equal(me.body.refreshTokenPresent, true)
+  assert.ok(me.body.loginTime)
+  assert.equal(me.body.tokens, undefined)
+  assert.equal(me.body.debugTokens, undefined)
+})
+
+test("protected pages redirect or reject when unauthenticated", async () => {
+  const app = createApp({ config: baseConfig })
+
+  for (const path of ["/account", "/activity", "/settings"]) {
+    const response = await request(app).get(path)
+    assert.equal(response.status, 302)
+    assert.equal(response.headers.location, "/?login=required")
+  }
+
+  const me = await request(app).get("/me")
+  assert.equal(me.status, 401)
+  assert.deepEqual(me.body, { authenticated: false })
+})
+
+test("/me excludes raw tokens by default", async () => {
+  const agent = await signedInAgent()
+  const response = await agent.get("/me")
+
+  assert.equal(response.status, 200)
+  assert.equal(response.body.tokens, undefined)
+  assert.equal(response.body.access_token, undefined)
+  assert.equal(response.body.id_token, undefined)
+  assert.equal(response.body.refresh_token, undefined)
+  assert.equal(response.text.includes("raw-access-token"), false)
+})
+
+test("/logout clears the member session", async () => {
+  const agent = await signedInAgent()
+
+  const before = await agent.get("/me")
+  assert.equal(before.status, 200)
+
+  const logout = await agent.post("/logout")
+  assert.equal(logout.status, 302)
+  assert.equal(logout.headers.location, "/")
+
+  const after = await agent.get("/me")
+  assert.equal(after.status, 401)
+  assert.deepEqual(after.body, { authenticated: false })
+})
+
+async function signedInAgent() {
+  const client = {
+    async completeLogin() {
+      return {
+        subject: "iUserAddress",
+        verus: verusClaims,
+        grantedScope: "openid offline verusid",
+        refreshTokenPresent: true,
+        tokens: {
+          access_token: "raw-access-token",
+          id_token: "raw-id-token",
+          refresh_token: "raw-refresh-token",
+        },
+      }
+    },
+    toPublicSession(session) {
+      return {
+        subject: session.subject,
+        verus: session.verus,
+        grantedScope: session.grantedScope,
+        refreshTokenPresent: session.refreshTokenPresent,
+      }
+    },
+  }
+  const app = createApp({ config: baseConfig, client })
+  const agent = request.agent(app)
+  const login = await agent.get("/login")
+  const location = new URL(login.headers.location)
+  await agent.get(`/callback?code=returned-code&state=${encodeURIComponent(location.searchParams.get("state"))}`)
+  return agent
+}

@@ -11,6 +11,10 @@ Run `npm run doctor:local` after changing local OAuth settings and after the loc
 | `CLIENT_ID` | `verus-express-login` | Registered confidential client ID. | Hydra callback returns invalid client or token exchange fails. |
 | `CLIENT_SECRET` | `verus-express-secret` | Strong registered client secret from your OAuth deployment. | Token exchange returns `invalid_client`. |
 | `REDIRECT_URI` | `http://$LOCAL_HOST:5560/callback` | Exact HTTPS callback URI registered on the client. | Token exchange or authorization redirect fails with redirect URI mismatch. |
+| `MEMBER_PORTAL_URL` | `http://$LOCAL_HOST:5570` | Local showcase helper only. | Stack status checks the wrong member portal URL. |
+| `MEMBER_PORTAL_CLIENT_ID` | `verus-member-portal` | Registered confidential client ID when running the showcase. | Hydra callback returns invalid client or token exchange fails. |
+| `MEMBER_PORTAL_CLIENT_SECRET` | `verus-member-secret` | Strong registered client secret when running the showcase. | Token exchange returns `invalid_client`. |
+| `MEMBER_PORTAL_REDIRECT_URI` | `http://$LOCAL_HOST:5570/callback` | Exact HTTPS callback URI registered on the client. | Token exchange or authorization redirect fails with redirect URI mismatch. |
 | `SCOPES` | `openid offline verusid` | Usually exactly `openid offline verusid`. | Missing Verus claims or refresh token; rerun client registration with this scope. |
 | `SESSION_SECRET` | Local fallback only | Long random value from a secret manager. | Sessions can be forged or invalidated unexpectedly. |
 | `SHOW_DEBUG_TOKENS` | unset | Keep unset. | `SHOW_DEBUG_TOKENS=1` exposes raw tokens in `/me`; use only locally. |
@@ -75,6 +79,12 @@ Expected: `pass Hydra client registration`. Fix by running:
 LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-express-login-client.sh
 ```
 
+For the member portal showcase, run:
+
+```sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-member-portal-client.sh
+```
+
 Symptom: Verus claims are missing.
 
 Run:
@@ -94,6 +104,12 @@ docker compose stop verusid-express-login
 ```
 
 Expected: only the Docker-hosted Express example stops; Hydra, Postgres, consent-node, and the callback dashboard keep running.
+
+For the member portal showcase on port `5570`, stop only that service:
+
+```sh
+docker compose stop verusid-member-portal
+```
 
 Symptom: wallet approval never completes.
 

@@ -29,6 +29,8 @@ Register or refresh the local Hydra client. Run this twice when checking idempot
 ```sh
 LOCAL_HOST=$LOCAL_HOST ./scripts/create-client.sh
 LOCAL_HOST=$LOCAL_HOST ./scripts/create-client.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-express-login-client.sh
+LOCAL_HOST=$LOCAL_HOST ./scripts/create-verusid-member-portal-client.sh
 ```
 
 Run the local OAuth stack checks:
@@ -64,6 +66,7 @@ Acceptance criteria:
 - The access token and ID token sessions include the minimal Verus claims: `verus_id`, `verus_id_name` when resolved, `verus_chain`, `verus_auth_method`, and `verus_login_at`.
 - The granted scopes include `openid`, `offline`, and `verusid`.
 - Optional starter check: open `http://$LOCAL_HOST:5560/` and confirm the VerusID Express Login app can complete the same wallet approval with client ID `verus-express-login`.
+- Optional showcase check: open `http://$LOCAL_HOST:5570/` and confirm the VerusID Member Portal can complete the same wallet approval with client ID `verus-member-portal`.
 
 ## Phone Same-Device Flow
 
@@ -97,7 +100,7 @@ If token output from the manual run was shared outside the local test environmen
 ## Troubleshooting
 
 - LAN host changed: rerun commands with `LOCAL_HOST=<current-ip>`, then rerun `./scripts/start-stack.sh` or `./scripts/create-client.sh` so Hydra redirects match the browser host.
-- Hydra client mismatch: rerun `LOCAL_HOST=<current-ip> ./scripts/create-client.sh` and confirm the redirect URI is `http://<current-ip>:5555/callback`.
+- Hydra client mismatch: rerun `LOCAL_HOST=<current-ip> ./scripts/create-client.sh`, `LOCAL_HOST=<current-ip> ./scripts/create-verusid-express-login-client.sh`, or `LOCAL_HOST=<current-ip> ./scripts/create-verusid-member-portal-client.sh` for the app you are testing.
 - Hydra admin URL failures: use `HYDRA_ADMIN_URL=http://127.0.0.1:4445` from the host and `HYDRA_ADMIN_URL=http://hydra:4445` inside Docker Compose services.
 - Verus RPC signing failures: confirm `.env.local` has working `VERUS_RPC_*` credentials and that the daemon can sign for `VERUS_SERVICE_ID` through `signdata`.
 - Wallet callback expired: restart the login from the callback app; pending Verus login requests expire after `VERUS_LOGIN_TTL_MS`.
