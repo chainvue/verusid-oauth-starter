@@ -24,7 +24,7 @@
     "qrcode": "^1.5.4",
     "url-join": "^4.0.1",
     "verus-typescript-primitives": "VerusCoin/verus-typescript-primitives#72d477b836538d6c734162b2c069538122263f3b",
-    "verusid-ts-client": "VerusCoin/verusid-ts-client#2eec86c7f06d13c8b04ddc1473fce32c450d2a31"
+    "verusid-ts-client": "VerusCoin/verusid-ts-client#e13438fe4b79536b754649f62342b7c0b1123380"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",

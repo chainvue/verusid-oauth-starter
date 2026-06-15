@@ -250,13 +250,31 @@ function parseResponseValue(value: unknown) {
     throw new Error("Missing login consent response.")
   }
 
-  const withoutDeeplink = value.includes(`${LOGIN_CONSENT_RESPONSE_VDXF_KEY.vdxfid}=`)
-    ? value.split(`${LOGIN_CONSENT_RESPONSE_VDXF_KEY.vdxfid}=`).pop() || ""
-    : value
+  const withoutDeeplink = extractResponsePayload(value)
 
   const response = new LoginConsentResponse()
-  response.fromBuffer(decodeBase64Url(decodeURIComponent(withoutDeeplink)))
+  response.fromBuffer(decodeBase64Url(withoutDeeplink))
   return response
+}
+
+function extractResponsePayload(value: string) {
+  const decoded = decodeURIComponent(value)
+  const queryStart = decoded.indexOf("?")
+  const query = queryStart >= 0 ? decoded.slice(queryStart + 1) : decoded
+  const params = new URLSearchParams(query)
+  const responseValue =
+    params.get(LOGIN_CONSENT_RESPONSE_VDXF_KEY.vdxfid) ||
+    params.get("response") ||
+    params.get("login_consent_response") ||
+    params.get("loginConsentResponse")
+
+  if (responseValue) {
+    return responseValue
+  }
+
+  return decoded.includes(`${LOGIN_CONSENT_RESPONSE_VDXF_KEY.vdxfid}=`)
+    ? decoded.split(`${LOGIN_CONSENT_RESPONSE_VDXF_KEY.vdxfid}=`).pop() || ""
+    : decoded
 }
 
 async function withRpcTimeout<T>(operation: Promise<T>, label: string): Promise<T> {
@@ -382,11 +400,10 @@ export async function createPendingLogin(loginChallenge: string) {
     serviceIdentity.result,
   )
 
-  const qrDeeplink = qrRequest.toWalletDeeplinkUri()
   const deeplink = deeplinkRequest.toWalletDeeplinkUri()
   const qrRequestValue = qrRequest.toString()
   const deeplinkRequestValue = deeplinkRequest.toString()
-  const qrDataUrl = await QRCode.toDataURL(qrDeeplink, {
+  const qrDataUrl = await QRCode.toDataURL(qrRequest.toWalletDeeplinkUri(), {
     errorCorrectionLevel: "M",
     margin: 1,
     width: 320,
@@ -434,6 +451,7 @@ export function parseLoginConsentResponse(
   return parseResponseValue(
     input.response ||
       input.login_consent_response ||
+      input.loginConsentResponse ||
       input[LOGIN_CONSENT_RESPONSE_VDXF_KEY.vdxfid] ||
       fallbackValue,
   )

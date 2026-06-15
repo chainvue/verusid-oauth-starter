@@ -48,7 +48,6 @@ async function handleCallback(
       verusId: session.verusId,
       verusIdName: session.verusIdName,
     })
-    await removePendingLogin(session.id)
     return
   }
 
