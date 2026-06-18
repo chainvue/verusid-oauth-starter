@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "check": "npm run lint && npm test",
+    "coverage": "node scripts/coverage-local.cjs",
     "doctor:local": "node scripts/doctor-local.cjs",
     "lint": "eslint .",
     "test": "node scripts/test-local.cjs"
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "c8": "^10.1.3",
     "eslint": "^10.4.1",
     "globals": "^17.6.0",
     "typescript-eslint": "^8.60.1"

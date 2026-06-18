@@ -9,11 +9,19 @@ const {
   computeAtHash,
   createPkceChallenge,
   createPkceVerifier,
+  exchangeCode,
+  introspectAccessToken,
+  parseCookies,
   renderClaimsSection,
+  renderIdentitySummary,
   renderIntegrationSection,
+  renderIntrospectionSection,
   renderResultSummary,
   renderTokenSection,
+  serializeCookie,
+  validateState,
   verifyIdToken,
+  verifyJwtSignature,
 } = require("./server")
 
 const verusClaims = {
@@ -46,6 +54,52 @@ test("authorization URL includes PKCE challenge when verifier is provided", () =
   assert.equal(url.searchParams.get("prompt"), "login")
   assert.equal(url.searchParams.get("code_challenge"), createPkceChallenge("verifier-123"))
   assert.equal(url.searchParams.get("code_challenge_method"), "S256")
+})
+
+test("authorization URL omits PKCE challenge when verifier is missing", () => {
+  const url = buildAuthorizationUrl("state-123", "nonce-123")
+
+  assert.equal(url.searchParams.get("state"), "state-123")
+  assert.equal(url.searchParams.get("nonce"), "nonce-123")
+  assert.equal(url.searchParams.get("code_challenge"), null)
+  assert.equal(url.searchParams.get("code_challenge_method"), null)
+})
+
+test("state validation reports missing, mismatched, and matched state", () => {
+  assert.deepEqual(validateState("", "returned"), {
+    ok: false,
+    message: "Missing saved state cookie",
+  })
+  assert.deepEqual(validateState("saved", ""), {
+    ok: false,
+    message: "Missing returned state",
+  })
+  assert.deepEqual(validateState("saved", "tampered"), {
+    ok: false,
+    message: "Returned state does not match saved state",
+  })
+  assert.deepEqual(validateState("saved", "saved"), {
+    ok: true,
+    message: "Returned state matches saved state",
+  })
+})
+
+test("cookie helpers parse encoded values and serialize OAuth session cookies", () => {
+  assert.deepEqual(parseCookies("verus_oauth_state=state%201; ignored; empty=; name=value%3D1"), {
+    verus_oauth_state: "state 1",
+    empty: "",
+    name: "value=1",
+  })
+
+  assert.equal(
+    serializeCookie("verus_oauth_state", "state 1", {
+      httpOnly: true,
+      sameSite: "Lax",
+      maxAge: 600,
+      path: "/callback",
+    }),
+    "verus_oauth_state=state%201; Max-Age=600; Path=/callback; HttpOnly; SameSite=Lax",
+  )
 })
 
 test("callback summary reports exact granted scope and refresh-token presence", () => {
@@ -142,6 +196,61 @@ test("callback token debug output displays raw tokens when explicitly enabled", 
   assert.match(html, /secret-access-token/)
   assert.match(html, /secret-refresh-token/)
   assert.match(html, /secret-id-token/)
+})
+
+test("token debug output renders exchange errors, raw responses, and introspection JSON", () => {
+  const tokenResult = {
+    ok: false,
+    status: 400,
+    statusText: "Bad Request",
+    body: {
+      error: "invalid_grant",
+      error_description: "Authorization code was already used.",
+      raw: "not-json",
+      scope: "openid",
+    },
+  }
+  const introspectionResult = {
+    ok: false,
+    body: {
+      active: false,
+      error: "invalid_token",
+    },
+  }
+
+  const html = renderTokenSection(tokenResult, introspectionResult, true)
+
+  assert.match(html, /Token Exchange Failed/)
+  assert.match(html, /400 Bad Request/)
+  assert.match(html, /invalid_grant/)
+  assert.match(html, /Authorization code was already used/)
+  assert.match(html, /Raw response/)
+  assert.match(html, /Debug: access-token introspection JSON/)
+  assert.match(html, /invalid_token/)
+})
+
+test("identity and introspection sections render absent and error states", () => {
+  const absentIdentity = renderIdentitySummary(null)
+  const noIntrospection = renderIntrospectionSection(null)
+  const failedIntrospection = renderIntrospectionSection({
+    ok: false,
+    status: 503,
+    statusText: "Service Unavailable",
+    error: "Hydra admin unavailable",
+    body: {
+      active: false,
+      scope: "openid",
+      sub: "iUserAddress",
+    },
+  })
+
+  assert.match(absentIdentity, /No Verus identity claims/)
+  assert.match(noIntrospection, /No access token was available/)
+  assert.match(failedIntrospection, /503 Service Unavailable/)
+  assert.match(failedIntrospection, /Active/)
+  assert.match(failedIntrospection, /false/)
+  assert.match(failedIntrospection, /Hydra admin unavailable/)
+  assert.match(failedIntrospection, /No Verus identity claims/)
 })
 
 test("copyable integration snippets include token exchange and introspection examples", () => {
@@ -282,6 +391,88 @@ test("verifyIdToken validates signature, issuer, audience, nonce, expiry, and at
   }
 })
 
+test("verifyIdToken reports malformed tokens and missing JWKS keys", async () => {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+  })
+  const jwk = publicKey.export({ format: "jwk" })
+  jwk.kid = "other-key"
+  jwk.use = "sig"
+  const token = signJwt(privateKey, {
+    alg: "RS256",
+    kid: "test-key",
+    typ: "JWT",
+  }, {
+    iss: "http://192.168.0.160:4444",
+    aud: "verus-local-client",
+    nonce: "expected-nonce",
+    exp: Math.floor(Date.now() / 1000) + 300,
+  })
+
+  const originalFetch = global.fetch
+  global.fetch = async (url) => {
+    if (String(url).endsWith("/.well-known/openid-configuration")) {
+      return jsonResponse({
+        issuer: "http://192.168.0.160:4444",
+        jwks_uri: "http://192.168.0.160:4444/.well-known/jwks.json",
+      })
+    }
+    if (String(url).endsWith("/.well-known/jwks.json")) {
+      return jsonResponse({ keys: [jwk] })
+    }
+    throw new Error(`Unexpected fetch ${url}`)
+  }
+
+  try {
+    const malformed = await verifyIdToken("not-a-jwt", "access-token", "expected-nonce")
+    const missingKey = await verifyIdToken(token, "access-token", "expected-nonce")
+
+    assert.equal(malformed.verified, false)
+    assert.match(malformed.error, /complete signed JWT/)
+    assert.equal(missingKey.verified, false)
+    assert.equal(missingKey.checks.find((check) => check.label === "JWKS key")?.ok, false)
+    assert.match(missingKey.error, /No matching Hydra JWKS key/)
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
+test("verifyJwtSignature and at_hash reject unsupported algorithms", () => {
+  assert.equal(verifyJwtSignature("a.b.c", { alg: "HS256" }, {}), false)
+  assert.equal(computeAtHash("access-token", "HS256"), null)
+})
+
+test("token exchange and introspection helpers return redacted failure objects", async () => {
+  const originalFetch = global.fetch
+  global.fetch = async (url) => {
+    if (String(url).endsWith("/oauth2/token")) {
+      return textResponse({
+        error: "invalid_grant",
+        error_description: "Bad code",
+      }, false, 400, "Bad Request")
+    }
+    if (String(url).endsWith("/admin/oauth2/introspect")) {
+      throw new Error("admin offline")
+    }
+    throw new Error(`Unexpected fetch ${url}`)
+  }
+
+  try {
+    const tokenResult = await exchangeCode("bad-code", "verifier")
+    const introspectionResult = await introspectAccessToken("access-token")
+
+    assert.equal(tokenResult.ok, false)
+    assert.equal(tokenResult.status, 400)
+    assert.equal(tokenResult.error, "invalid_grant")
+    assert.equal(tokenResult.body.error_description, "Bad code")
+    assert.equal(introspectionResult.ok, false)
+    assert.equal(introspectionResult.statusText, "Introspection request failed")
+    assert.equal(introspectionResult.error, "admin offline")
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
 function signJwt(privateKey, header, claims) {
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url")
   const encodedClaims = Buffer.from(JSON.stringify(claims)).toString("base64url")
@@ -298,5 +489,14 @@ function jsonResponse(body) {
     status: 200,
     statusText: "OK",
     json: async () => body,
+  }
+}
+
+function textResponse(body, ok = true, status = 200, statusText = "OK") {
+  return {
+    ok,
+    status,
+    statusText,
+    text: async () => JSON.stringify(body),
   }
 }

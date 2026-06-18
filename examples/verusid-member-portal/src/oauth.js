@@ -24,6 +24,13 @@ export function installOAuthRoutes(app, options) {
     try {
       const savedOAuth = req.session.oauth || {}
       delete req.session.oauth
+      if (!savedOAuth.state) {
+        res.status(400).type("html").send(renderError(
+          "OAuth session not found",
+          `The callback reached this app without the session created by /login. Start again from the same browser host and port as the configured redirect URI: ${config.redirectUri}`,
+        ))
+        return
+      }
 
       const verifiedSession = await client.completeLogin({
         code: req.query.code,

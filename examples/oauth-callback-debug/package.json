@@ -2,6 +2,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
+    "coverage": "node ../../scripts/c8-node26.cjs --all --include=server.js --reporter=text --reporter=json-summary node --test server.test.js",
     "test": "node --test server.test.js"
   }
 }

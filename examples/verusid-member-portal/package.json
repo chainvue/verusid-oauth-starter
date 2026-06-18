@@ -13,13 +13,16 @@
     "./oauth": "./src/oauth.js"
   },
   "scripts": {
+    "coverage": "node ../../scripts/c8-node26.cjs --all --include=src --exclude=src/server.js --reporter=text --reporter=json-summary node --test",
     "start": "node src/server.js",
     "test": "node --test"
   },
   "dependencies": {
     "@chainvue/verusid-oauth": "^0.1.4",
     "express": "^4.21.2",
-    "express-session": "^1.19.0"
+    "express-session": "^1.19.0",
+    "qrcode": "^1.5.4",
+    "verus-typescript-primitives": "VerusCoin/verus-typescript-primitives#72d477b836538d6c734162b2c069538122263f3b"
   },
   "devDependencies": {
     "supertest": "^7.2.2"

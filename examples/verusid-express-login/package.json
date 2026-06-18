@@ -13,6 +13,7 @@
     "./verus-routes": "./src/verus-routes.js"
   },
   "scripts": {
+    "coverage": "node ../../scripts/c8-node26.cjs --all --include=src --exclude=src/server.js --reporter=text --reporter=json-summary node --test",
     "start": "node src/server.js",
     "test": "node --test"
   },
