@@ -7,7 +7,7 @@ const checks = [
     label: "OAuth callback dashboard tests",
     command: "npm",
     args: ["test"],
-    cwd: "oauth-callback",
+    cwd: "examples/oauth-callback-debug",
   },
   {
     label: "Express example tests",

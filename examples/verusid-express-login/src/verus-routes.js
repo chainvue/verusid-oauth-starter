@@ -1,15 +1,17 @@
 import {
+  buildAuthorizationUrl,
   createVerusOAuthClient,
   VerusOAuthError,
   VerusOAuthErrorCode,
 } from "@chainvue/verusid-oauth"
+import crypto from "node:crypto"
 
 export function installVerusRoutes(app, options) {
   const { config, renderError } = options
   const client = options.client || createVerusOAuthClient(config)
 
   app.get("/login", (req, res) => {
-    const loginRequest = client.createLoginRequest()
+    const loginRequest = createLoginRequest(config, options.client)
     req.session.oauth = {
       state: loginRequest.state,
       nonce: loginRequest.nonce,
@@ -57,6 +59,33 @@ export function installVerusRoutes(app, options) {
     req.session.login = null
     res.redirect("/")
   })
+}
+
+export function createLoginRequest(config, client) {
+  if (client?.createLoginRequest) {
+    return client.createLoginRequest()
+  }
+
+  const state = randomValue()
+  const nonce = randomValue()
+  const codeVerifier = createPkceVerifier()
+  const authorizationUrl = buildAuthorizationUrl(config, state, nonce, codeVerifier)
+  authorizationUrl.searchParams.set("prompt", "login")
+
+  return {
+    authorizationUrl,
+    state,
+    nonce,
+    codeVerifier,
+  }
+}
+
+export function createPkceVerifier() {
+  return crypto.randomBytes(32).toString("base64url")
+}
+
+function randomValue() {
+  return crypto.randomBytes(24).toString("base64url")
 }
 
 export function errorTitle(error) {

@@ -1,8 +1,8 @@
 # VerusID OAuth Integration Guide
 
-This guide describes the local relying-party pattern shown by `oauth-callback/server.js`. It is a developer demo for integrating VerusID login through Hydra and the editable consent node.
+This guide describes the local relying-party pattern shown by `examples/oauth-callback-debug/server.js`. It is a developer demo for integrating VerusID login through Hydra and the editable consent node.
 
-Use `oauth-callback/` when you want the rich proof dashboard. Use `examples/verusid-express-login/` when you want a smaller MIT-licensed Express app to copy into another server-side Node project.
+Use `examples/oauth-callback-debug/` when you want the rich proof dashboard. Use `examples/verusid-express-login/` when you want a smaller MIT-licensed Express app to copy into another server-side Node project.
 
 ## Requested Scope
 

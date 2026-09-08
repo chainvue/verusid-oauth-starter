@@ -101,8 +101,10 @@ The stack includes:
 - Ory Hydra public/admin endpoints.
 - Postgres persistence for Hydra.
 - Editable TypeScript/Express consent node under `consent-node/`.
-- Callback dashboard under `oauth-callback/`.
+- Debug callback dashboard under `examples/oauth-callback-debug/`.
 - Copy-ready Express login app under `examples/verusid-express-login/`, using `express-session` with an HTTP-only, lax same-site cookie.
+
+Both relying-party apps live under `examples/`: use the debug callback dashboard to inspect the raw OAuth/OIDC exchange, and use the Express login app as the production-shaped integration template.
 
 The Express example stores OAuth `state`, `nonce`, and PKCE `codeVerifier` in
 the server-side session during `/login`; `/callback` passes the saved verifier
